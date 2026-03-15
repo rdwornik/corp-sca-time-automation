@@ -2,18 +2,16 @@
 Text utilities for handling special characters.
 """
 
-import unicodedata
-
 UMLAUT_MAP = {
-    'ü': 'u',
-    'ä': 'a', 
-    'ö': 'o',
-    'ß': 'ss',
-    'é': 'e',
-    'è': 'e',
-    'ê': 'e',
-    'à': 'a',
-    'ç': 'c',
+    "ü": "u",
+    "ä": "a",
+    "ö": "o",
+    "ß": "ss",
+    "é": "e",
+    "è": "e",
+    "ê": "e",
+    "à": "a",
+    "ç": "c",
 }
 
 

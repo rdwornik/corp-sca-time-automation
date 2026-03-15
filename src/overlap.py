@@ -34,30 +34,30 @@ def resolve_overlaps_by_hour(events: list, get_category_func) -> list:
     Adjusts event minutes based on hours won.
     """
     hour_map = defaultdict(list)
-    
+
     for idx, event in enumerate(events):
         sp_category = get_category_func(event)
         if not sp_category:
             continue
-            
+
         priority = get_priority(sp_category)
         start = parse_datetime(event["start"])
         end = parse_datetime(event["end"])
-        
+
         current = start.replace(minute=0, second=0)
         while current < end:
             hour_key = (current.date(), current.hour)
             hour_map[hour_key].append((idx, priority, sp_category))
             current += timedelta(hours=1)
-    
+
     selected_hours = defaultdict(int)
-    
+
     for hour_key, candidates in hour_map.items():
         if candidates:
             candidates.sort(key=lambda x: x[1], reverse=True)
             winner_idx = candidates[0][0]
             selected_hours[winner_idx] += 1
-    
+
     result = []
     for idx, event in enumerate(events):
         won_hours = selected_hours.get(idx, 0)
@@ -65,5 +65,5 @@ def resolve_overlaps_by_hour(events: list, get_category_func) -> list:
             new_event = event.copy()
             new_event["minutes"] = won_hours * 60
             result.append(new_event)
-    
+
     return result

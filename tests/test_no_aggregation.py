@@ -19,7 +19,7 @@ test_data = [
         "needs_opp_id": False,
         "needs_review": False,
         "status": "NEW",
-        "is_autofilled": False
+        "is_autofilled": False,
     },
     {
         "week_beginning": "2025-12-15",
@@ -32,7 +32,7 @@ test_data = [
         "needs_opp_id": False,
         "needs_review": False,
         "status": "NEW",
-        "is_autofilled": False
+        "is_autofilled": False,
     },
     {
         "week_beginning": "2025-12-15",
@@ -45,7 +45,7 @@ test_data = [
         "needs_opp_id": False,
         "needs_review": False,
         "status": "NEW",
-        "is_autofilled": False
+        "is_autofilled": False,
     },
 ]
 
@@ -94,4 +94,6 @@ if len(data_rows) == 3 and len(summary_rows) == 1:
     else:
         print(f"[FAILURE] WEEK TOTAL should be 2.5h, got {total_hours}h")
 else:
-    print(f"[FAILURE] Expected 3 data rows + 1 WEEK TOTAL, got {len(data_rows)} + {len(summary_rows)}")
+    print(
+        f"[FAILURE] Expected 3 data rows + 1 WEEK TOTAL, got {len(data_rows)} + {len(summary_rows)}"
+    )

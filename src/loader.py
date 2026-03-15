@@ -8,6 +8,7 @@ from typing import TypedDict
 
 from src.config import get_settings, get_excluded
 
+
 class CalendarEvent(TypedDict):
     start: str
     end: str
@@ -41,14 +42,21 @@ def filter_excluded(events: list[CalendarEvent]) -> list[CalendarEvent]:
     return [e for e in events if e["category"].upper() not in excluded_cats]
 
 
-def filter_by_weeks(events: list[CalendarEvent], weeks_back: int) -> list[CalendarEvent]:
+def filter_by_weeks(
+    events: list[CalendarEvent], weeks_back: int
+) -> list[CalendarEvent]:
     """Filter events to last N weeks."""
     from datetime import datetime, timedelta
+
     cutoff = datetime.now() - timedelta(weeks=weeks_back)
-    return [e for e in events if datetime.strptime(e['start'][:10], '%Y-%m-%d') >= cutoff]
+    return [
+        e for e in events if datetime.strptime(e["start"][:10], "%Y-%m-%d") >= cutoff
+    ]
 
 
-def load_and_filter(path: str | Path | None = None, weeks_back: int | None = None) -> list[CalendarEvent]:
+def load_and_filter(
+    path: str | Path | None = None, weeks_back: int | None = None
+) -> list[CalendarEvent]:
     """Load calendar and filter excluded categories.
 
     Args:

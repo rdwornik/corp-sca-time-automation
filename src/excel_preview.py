@@ -6,11 +6,11 @@ import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from src.config import get_settings, get_category_mapping
+from src.config import get_settings
 from src.loader import load_and_filter
 from src.mapper import map_category, detect_client
 from src.project_codes import load_project_codes, match_opportunity_id
-from src.overlap import resolve_overlaps_by_hour, get_priority
+from src.overlap import resolve_overlaps_by_hour
 from src.gap_filler import fill_gaps_with_new_entries
 
 
@@ -30,15 +30,15 @@ def round_hours(hours: float, precision: float = 0.5) -> float:
 def split_multiday_events(events: list) -> list:
     """Split multi-day all_day events into daily entries (8h per workday)."""
     result = []
-    
+
     for event in events:
         if not event.get("all_day") or event["minutes"] <= 480:
             result.append(event)
             continue
-        
+
         start = datetime.strptime(event["start"][:10], "%Y-%m-%d")
         end = datetime.strptime(event["end"][:10], "%Y-%m-%d")
-        
+
         current = start
         while current < end:
             if current.weekday() < 5:  # Skip weekends
@@ -49,11 +49,13 @@ def split_multiday_events(events: list) -> list:
                 daily_event["all_day"] = False
                 result.append(daily_event)
             current += timedelta(days=1)
-    
+
     return result
 
 
-def generate_preview(output_path: str | Path | None = None, weeks_back: int | None = None) -> pd.DataFrame:
+def generate_preview(
+    output_path: str | Path | None = None, weeks_back: int | None = None
+) -> pd.DataFrame:
     """Generate Excel preview from calendar events.
 
     Uses project_codes.xlsx as single source of truth for client detection.
@@ -62,20 +64,15 @@ def generate_preview(output_path: str | Path | None = None, weeks_back: int | No
         output_path: Path to output Excel file
         weeks_back: If specified, filter to last N weeks
     """
-    from src.overlap import resolve_overlaps_by_hour
 
     # Categories that should NEVER have opportunity_id or client
     NO_OPPORTUNITY_ID_CATEGORIES = {
-        'Training',
-        'Admin',
-        'Support',
-        'Travel',
-        'Time Off',
+        "Training",
+        "Admin",
+        "Support",
+        "Travel",
+        "Time Off",
     }
-
-    settings = get_settings()
-    category_mapping = get_category_mapping()
-    sales_categories = set(category_mapping.get("sales_categories", []))
 
     events = load_and_filter(weeks_back=weeks_back)
     events = split_multiday_events(events)
@@ -96,12 +93,13 @@ def generate_preview(output_path: str | Path | None = None, weeks_back: int | No
 
         week = get_week_beginning(event["start"])
         hours = round_hours(event["minutes"] / 60)
-        needs_opp_id = sp_category in sales_categories
 
         # Match opportunity ID for ANY row with client
         opp_id, needs_review = "", False
         if client:
-            opp_id, needs_review = match_opportunity_id(client, event["title"], project_codes)
+            opp_id, needs_review = match_opportunity_id(
+                client, event["title"], project_codes
+            )
 
         # Clear client and opportunity_id for non-sales categories
         if sp_category in NO_OPPORTUNITY_ID_CATEGORIES:
@@ -109,24 +107,28 @@ def generate_preview(output_path: str | Path | None = None, weeks_back: int | No
             opp_id = ""
             needs_review = False
 
-        rows.append({
-            "week_beginning": week,
-            "category": sp_category,
-            "client": client or "",
-            "hours": hours,
-            "opportunity_id": opp_id,
-            "title": event["title"],
-            "external_domains": event.get("external_domains", ""),
-            "needs_review": needs_review,
-            "is_autofilled": False,
-            "status": "NEW"
-        })
+        rows.append(
+            {
+                "week_beginning": week,
+                "category": sp_category,
+                "client": client or "",
+                "hours": hours,
+                "opportunity_id": opp_id,
+                "title": event["title"],
+                "external_domains": event.get("external_domains", ""),
+                "needs_review": needs_review,
+                "is_autofilled": False,
+                "status": "NEW",
+            }
+        )
 
     df = pd.DataFrame(rows)
     return df
 
 
-def generate_aggregated_preview(output_path: str | Path | None = None, weeks_back: int | None = None) -> pd.DataFrame:
+def generate_aggregated_preview(
+    output_path: str | Path | None = None, weeks_back: int | None = None
+) -> pd.DataFrame:
     """
     Generate Excel preview with WEEK TOTAL summaries.
     Each calendar event is a separate row (no aggregation by category).
@@ -153,7 +155,12 @@ def generate_aggregated_preview(output_path: str | Path | None = None, weeks_bac
 
     return df_with_summary
 
-def generate_final_preview(output_path: str | Path | None = None, fill: bool = True, weeks_back: int | None = None) -> pd.DataFrame:
+
+def generate_final_preview(
+    output_path: str | Path | None = None,
+    fill: bool = True,
+    weeks_back: int | None = None,
+) -> pd.DataFrame:
     """Generate final Excel preview with gap filling and colors.
 
     Args:

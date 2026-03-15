@@ -55,7 +55,7 @@ for event in resolved:
     print(f"       Minutes: {event['minutes']}")
 print()
 
-if len(resolved) == 1 and resolved[0]['minutes'] == 60:
+if len(resolved) == 1 and resolved[0]["minutes"] == 60:
     print("[SUCCESS] Only 1 event with 60 minutes (overlap resolved correctly)")
 else:
     print(f"[FAILURE] Expected 1 event with 60 minutes, got {len(resolved)} events")

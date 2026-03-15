@@ -8,6 +8,7 @@ from typing import TypedDict
 
 class CalendarEvent(TypedDict):
     """Event from Outlook calendar export."""
+
     title: str
     start: str
     end: str
@@ -20,6 +21,7 @@ class CalendarEvent(TypedDict):
 
 class ProjectCode(TypedDict):
     """Project code from Excel input."""
+
     company: str
     description: str
     code: str  # OP-XXXXXXX
@@ -27,6 +29,7 @@ class ProjectCode(TypedDict):
 
 class TimeEntry(TypedDict):
     """Entry for SharePoint submission."""
+
     week_beginning: str  # YYYY-MM-DD (sunday)
     category: str
     hours: float

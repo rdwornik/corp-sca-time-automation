@@ -19,7 +19,7 @@ test_data = [
         "external_domains": "",
         "needs_review": False,
         "status": "NEW",
-        "is_autofilled": False
+        "is_autofilled": False,
     }
 ]
 
@@ -33,7 +33,7 @@ expected_order = [
     "external_domains",
     "needs_review",
     "is_autofilled",
-    "status"
+    "status",
 ]
 
 print("=== Testing Column Order ===\n")

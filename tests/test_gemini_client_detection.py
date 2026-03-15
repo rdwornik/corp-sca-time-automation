@@ -9,23 +9,23 @@ test_events = [
     {
         "title": "Dry run sessione IT",
         "external_domains": "",
-        "expected_behavior": "Should use Gemini AI to detect Italian client (e.g., Veronesi)"
+        "expected_behavior": "Should use Gemini AI to detect Italian client (e.g., Veronesi)",
     },
     {
         "title": "Wurth meeting",
         "external_domains": "wurthindustry.com",
-        "expected_behavior": "Should detect Wurth from domain hint or title"
+        "expected_behavior": "Should detect Wurth from domain hint or title",
     },
     {
         "title": "Meeting in Frankfurt office",
         "external_domains": "",
-        "expected_behavior": "Should use Gemini AI to detect German client (e.g., Merz)"
+        "expected_behavior": "Should use Gemini AI to detect German client (e.g., Merz)",
     },
     {
         "title": "Internal alignment call",
         "external_domains": "",
-        "expected_behavior": "Should return None (no client match)"
-    }
+        "expected_behavior": "Should return None (no client match)",
+    },
 ]
 
 print("=== Testing Gemini AI Client Detection ===\n")
@@ -34,7 +34,7 @@ print("Client detection now uses project_codes.xlsx as single source of truth.\n
 
 for i, event in enumerate(test_events, 1):
     print(f"Test {i}: {event['title']}")
-    if event['external_domains']:
+    if event["external_domains"]:
         print(f"        Domains: {event['external_domains']}")
     print(f"Expected: {event['expected_behavior']}")
 

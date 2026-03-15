@@ -22,17 +22,16 @@ def call_gemini(prompt: str) -> str:
         model = settings["ai"]["model"]
 
         client = get_client()
-        response = client.models.generate_content(
-            model=model,
-            contents=prompt
-        )
+        response = client.models.generate_content(model=model, contents=prompt)
         return response.text.strip()
     except Exception as e:
         print(f"Gemini API error: {e}")
         return ""
 
 
-def detect_client_with_context(title: str, external_domains: str, company_names: list[str]) -> str:
+def detect_client_with_context(
+    title: str, external_domains: str, company_names: list[str]
+) -> str:
     """
     Use Gemini AI to detect client from meeting title and external domains.
 
@@ -55,7 +54,7 @@ def detect_client_with_context(title: str, external_domains: str, company_names:
         domain_hint = f"\nExternal attendee domains: {external_domains}"
 
     prompt = f"""Meeting title: '{title}'{domain_hint}
-Known clients: {', '.join(company_names)}
+Known clients: {", ".join(company_names)}
 
 Which client is this meeting most likely about? Consider:
 - Domain names often contain client name (e.g., michelin.com -> Michelin, veronesi.it -> Veronesi)

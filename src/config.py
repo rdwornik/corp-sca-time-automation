@@ -10,6 +10,7 @@ import yaml
 
 load_dotenv()
 
+
 def expand_path(path: str) -> str:
     """Expand environment variables in path."""
     return os.path.expandvars(path)
@@ -30,14 +31,15 @@ def load_yaml(filename: str) -> dict:
 def get_settings() -> dict:
     """Load settings with path expansion."""
     settings = load_yaml("settings.yaml")
-    
+
     # Expand environment variables in paths
     if "paths" in settings:
         for key, value in settings["paths"].items():
             if isinstance(value, str):
                 settings["paths"][key] = os.path.expandvars(value)
-    
+
     return settings
+
 
 def get_category_mapping() -> dict:
     """Load category_mapping.yaml."""

@@ -15,7 +15,9 @@ def map_category(outlook_category: str) -> str | None:
     return mapping.get(outlook_category.upper())
 
 
-def extract_client_from_title_keywords(title: str, company_names: list[str]) -> str | None:
+def extract_client_from_title_keywords(
+    title: str, company_names: list[str]
+) -> str | None:
     """
     Extract client name from event title using simple keyword matching.
     Fallback when Gemini AI is not available.
@@ -81,7 +83,9 @@ def detect_client(event: dict, use_ai: bool = True) -> str | None:
         # Try Gemini AI first if enabled (with external_domains as hint)
         if ai_enabled:
             try:
-                ai_client = detect_client_with_context(title, external_domains, company_names)
+                ai_client = detect_client_with_context(
+                    title, external_domains, company_names
+                )
                 if ai_client:
                     return ai_client
             except Exception:

@@ -4,6 +4,7 @@ Keep each calendar event as separate row. No aggregation by category.
 
 import pandas as pd
 
+
 def aggregate_entries(df: pd.DataFrame) -> pd.DataFrame:
     """
     Keep each event as a separate row (no aggregation).
@@ -36,7 +37,7 @@ def aggregate_entries(df: pd.DataFrame) -> pd.DataFrame:
         "external_domains",
         "needs_review",
         "is_autofilled",
-        "status"
+        "status",
     ]
 
     # Only include columns that exist in the dataframe
@@ -44,6 +45,7 @@ def aggregate_entries(df: pd.DataFrame) -> pd.DataFrame:
     df = df[final_columns]
 
     return df
+
 
 def add_week_summaries(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -67,11 +69,11 @@ def add_week_summaries(df: pd.DataFrame) -> pd.DataFrame:
             "client": "",
             "hours": total_hours,
             "opportunity_id": "",
-            "comments": f"Total: {total_hours}h / 40h = {total_hours/40*100:.0f}%",
+            "comments": f"Total: {total_hours}h / 40h = {total_hours / 40 * 100:.0f}%",
             "external_domains": "",
             "needs_review": False,
             "is_autofilled": False,
-            "status": "---"
+            "status": "---",
         }
         rows.append(summary_row)
 
@@ -88,7 +90,7 @@ def add_week_summaries(df: pd.DataFrame) -> pd.DataFrame:
         "external_domains",
         "needs_review",
         "is_autofilled",
-        "status"
+        "status",
     ]
 
     # Only include columns that exist in the dataframe

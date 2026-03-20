@@ -66,7 +66,15 @@ VBA Export (Outlook) -> calendar_export.json
 - `config/settings.yaml` — paths, processing params, SharePoint IDs, AI config
 - `config/category_mapping.yaml` — Outlook category prefix -> SharePoint category name
 - `config/excluded.yaml` — categories to skip entirely
-- `.env` — `ONEDRIVE_PATH`, `GRAPH_ACCESS_TOKEN`, `GEMINI_API_KEY`
+- `.env` — `ONEDRIVE_PATH`, `GRAPH_ACCESS_TOKEN` (per-session), Azure IDs
+
+## API Keys
+
+Keys loaded globally from `Documents/.secrets/.env` via PowerShell profile.
+Do NOT add API keys to local `.env`.
+Check: `keys list` | Update: `keys set KEY value` | Reload: `keys reload`
+
+This repo uses: `GEMINI_API_KEY`
 
 ## Dev standards
 

@@ -11,4 +11,7 @@ token_cache.json
 !.vscode/settings.json
 
 # Claude Code files
-.claude/
+.claude/settings.local.json
+
+# Ruff
+.ruff_cache/

@@ -121,6 +121,20 @@ Current: 2 pytest tests in `test_no_opportunity_categories.py`. Other test files
 - `google-genai` — Gemini AI client (optional)
 - `requests` — SharePoint Graph API calls
 
+## Integration points
+
+corp-sca-time-automation is fully standalone.
+
+- **Shared state**: reads Project_Codes.xlsm from 90_System/ (shared with corp-opportunity-manager)
+- Uploads time entries to SharePoint via Graph API
+- No Obsidian vault interaction
+
+## Related repos
+
+- [ECOSYSTEM.md](../ECOSYSTEM.md) — full ecosystem overview
+- [corp-opportunity-manager](../corp-opportunity-manager/) — also reads Project_Codes.xlsm
+- [corp-ops](../corp-ops/) — SharePoint/Graph API tooling
+
 ## Known issues
 
 - `models.py` defines TypedDicts that are not imported elsewhere (duplicate CalendarEvent in loader.py)

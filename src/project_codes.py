@@ -13,14 +13,16 @@ def load_project_codes(path: str | Path | None = None) -> pd.DataFrame:
         settings = get_settings()
         path = Path(settings["paths"]["project_codes"])
 
-    df = pd.read_excel(path)
+    df = pd.read_excel(path, engine="openpyxl")
 
     # Detect format and normalize column names
-    if "JDA OpptyID" in df.columns:
+    # Detect OpptyID column name (JDA OpptyID or JDA OpptyID2)
+    oppty_col = next((c for c in df.columns if c.startswith("JDA OpptyID")), None)
+    if oppty_col:
         # New format
         df = df.rename(
             columns={
-                "JDA OpptyID": "code",
+                oppty_col: "code",
                 "Account Name": "company",
                 "Opportunity Name": "description",
             }

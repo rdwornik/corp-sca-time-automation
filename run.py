@@ -26,19 +26,40 @@ from src.sharepoint import post_week_entries, post_all_weeks
 import pandas as pd
 
 
-def cmd_export():
-    """Remind user to run VBA export script."""
-    print("=" * 60)
-    print("STEP 1: Export Calendar from Outlook")
-    print("=" * 60)
-    print()
-    print("1. Open Outlook")
-    print("2. Press Alt+F11 to open VBA Editor")
-    print("3. Run the 'ExportCalendarWithExternalDomains' macro")
-    print("4. Save export to: data/input/calendar_export.json")
-    print()
-    print("Then run: python run.py preview")
-    print()
+def cmd_export(run: bool = False, weeks: int = 4):
+    """Export calendar from Outlook. With --run, executes VBS script directly."""
+    if run:
+        import subprocess
+
+        vbs_path = Path(__file__).parent / "scripts" / "calendar_export.vbs"
+        if not vbs_path.exists():
+            print(f"Error: VBS script not found: {vbs_path}")
+            sys.exit(1)
+
+        print(f"Running calendar export ({weeks} weeks back)...")
+        print()
+        result = subprocess.run(
+            ["cscript", "//Nologo", str(vbs_path), str(weeks)],
+            capture_output=False,
+        )
+        if result.returncode != 0:
+            print("\nExport failed. Is Outlook running?")
+            sys.exit(1)
+        print()
+        print("Next: python run.py preview")
+    else:
+        print("=" * 60)
+        print("STEP 1: Export Calendar from Outlook")
+        print("=" * 60)
+        print()
+        print("Option A (recommended):")
+        print(f"  python run.py export --run --weeks {weeks}")
+        print()
+        print("Option B (manual):")
+        print(f"  cscript //Nologo scripts/calendar_export.vbs {weeks}")
+        print()
+        print("Then run: python run.py preview")
+        print()
 
 
 def cmd_preview(use_ai: bool = True, weeks_back: int | None = None):
@@ -222,7 +243,9 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # export command
-    subparsers.add_parser("export", help="Reminder to run VBA export script")
+    export_parser = subparsers.add_parser("export", help="Export calendar from Outlook")
+    export_parser.add_argument("--run", action="store_true", help="Run VBS export script directly")
+    export_parser.add_argument("--weeks", type=int, default=4, help="Number of weeks back to export (default: 4)")
 
     # preview command
     preview_parser = subparsers.add_parser("preview", help="Generate Excel preview")
@@ -250,7 +273,7 @@ def main():
 
     try:
         if args.command == "export":
-            cmd_export()
+            cmd_export(run=args.run, weeks=args.weeks)
         elif args.command == "preview":
             cmd_preview(use_ai=not args.no_ai, weeks_back=args.weeks)
         elif args.command == "upload":

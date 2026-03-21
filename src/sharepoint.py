@@ -3,7 +3,8 @@ SharePoint Graph API connector for SCA Time Tracker.
 """
 
 import requests
-from src.config import get_env, get_settings
+from azure.identity import AzureCliCredential
+from src.config import get_settings
 
 
 def get_graph_url() -> str:
@@ -32,11 +33,16 @@ CATEGORY_MAP = {
 
 
 def get_access_token() -> str:
-    """Get access token from environment or interactive login."""
-    token = get_env("GRAPH_ACCESS_TOKEN")
-    if not token:
-        raise ValueError("GRAPH_ACCESS_TOKEN not set in .env")
-    return token
+    """Get Graph API token via az login session. Auto-refreshes."""
+    try:
+        credential = AzureCliCredential()
+        token = credential.get_token("https://graph.microsoft.com/.default")
+        return token.token
+    except Exception as e:
+        raise ValueError(
+            f"Cannot get Graph token: {e}\n"
+            f"Run 'az login' first, then retry."
+        ) from e
 
 
 def post_time_entry(entry: dict, access_token: str = None) -> dict:

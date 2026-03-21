@@ -1,7 +1,7 @@
 ﻿# Paths
 paths:
   calendar_input: "data/input/calendar_export.json"
-  project_codes: "${ONEDRIVE_PATH}/Projects/_Technical Presales/Projects/Project_Codes.xlsx"
+  project_codes: "C:/Users/1028120/Documents/MyWork/90_System/Project_Codes.xlsm"
   excel_preview: "data/output/time_entries_preview.xlsx"
 
 # Processing parameters

@@ -1,108 +1,110 @@
 Option Explicit
 
 ' =============================================================
-' SCA Time Automation - Calendar Export v2
-' Exports calendar events to JSON with external attendee domains
+' SCA Time Automation - Calendar Export (Standalone VBS)
+' Run from terminal: cscript //Nologo scripts/calendar_export.vbs [WEEKS]
+' Example: cscript //Nologo scripts/calendar_export.vbs 12
 ' =============================================================
 
-Public Sub ExportCalendarToJSON()
-    
-    On Error GoTo ErrHandler
-    
-    ' --- Configuration ---
-    Const WEEKS_BACK As Integer = 4
-    Const OUTPUT_PATH As String = "C:\Users\1028120\Documents\Scripts\sca-time-automation\data\input\calendar_export.json"
-    
-    ' Internal domains to exclude
-    Const INTERNAL_DOMAINS As String = "blueyonder.com,jda.com,microsoft.com"
-    
-    ' --- Variables ---
-    Dim fso As Object
-    Dim outFile As Object
-    Dim stream As Object
-    Dim ns As Outlook.NameSpace
-    Dim calendarFolder As Outlook.MAPIFolder
-    Dim items As Outlook.Items
-    Dim filteredItems As Outlook.Items
-    Dim appt As Outlook.AppointmentItem
-    Dim recip As Outlook.Recipient
-    
-    Dim startDate As Date
-    Dim endDate As Date
-    Dim filterStr As String
-    Dim jsonStr As String
-    Dim comma As String
-    Dim category As String
-    Dim externalDomains As String
-    Dim recipEmail As String
-    Dim recipDomain As String
-    Dim cats() As String
-    Dim cat As Variant
-    Dim internalArr() As String
-    Dim eventCount As Long
-    Dim i As Long
-    Dim isInternal As Boolean
-    
-    ' --- Setup dates ---
-    endDate = DateAdd("d", 1, Date)
-    startDate = DateAdd("ww", -WEEKS_BACK, Date)
-    
-    ' Parse internal domains
-    internalArr = Split(INTERNAL_DOMAINS, ",")
-    
-    ' --- Get calendar ---
-    Set ns = Application.GetNamespace("MAPI")
-    Set calendarFolder = ns.GetDefaultFolder(olFolderCalendar)
-    Set items = calendarFolder.items
-    
-    ' --- Filter and sort ---
-    items.Sort "[Start]", False
-    items.IncludeRecurrences = True
-    filterStr = "[Start] >= '" & Format(startDate, "MM/DD/YYYY") & "' AND [Start] < '" & Format(endDate, "MM/DD/YYYY") & "'"
-    Set filteredItems = items.Restrict(filterStr)
-    
-    ' --- Build JSON string ---
-    jsonStr = "{""events"": ["
-    comma = ""
-    eventCount = 0
-    
-    ' --- Process events ---
-    For Each appt In filteredItems
-        
-        ' Extract category (with . prefix)
-        category = ""
-        If Len(appt.Categories) > 0 Then
-            cats = Split(appt.Categories, ",")
-            For Each cat In cats
-                cat = Trim(cat)
-                If Left(cat, 1) = "." Then
-                    category = Mid(cat, 2)
-                    Exit For
-                End If
-            Next cat
-        End If
-        
-        ' Skip if no tracked category
-        If category = "" Then GoTo NextAppt
-        
+' --- Configuration ---
+Dim WEEKS_BACK
+If WScript.Arguments.Count > 0 Then
+    WEEKS_BACK = CInt(WScript.Arguments(0))
+Else
+    WEEKS_BACK = 4
+End If
+
+Const OUTPUT_PATH = "C:\Users\1028120\Documents\Scripts\corp-sca-time-automation\data\input\calendar_export.json"
+Const INTERNAL_DOMAINS = "blueyonder.com,jda.com,microsoft.com"
+
+' --- Variables ---
+Dim objOutlook, objExchUser, ns, calendarFolder, items, filteredItems, appt, recip
+Dim stream
+Dim startDate, endDate, filterStr
+Dim jsonStr, comma, category, externalDomains
+Dim recipEmail, recipDomain
+Dim cats, cat, internalArr
+Dim eventCount, i, isInternal
+
+' --- Connect to Outlook via COM ---
+On Error Resume Next
+Set objOutlook = CreateObject("Outlook.Application")
+If Err.Number <> 0 Then
+    WScript.Echo "ERROR: Cannot connect to Outlook. Is it running?"
+    WScript.Quit 1
+End If
+On Error GoTo 0
+
+Set ns = objOutlook.GetNamespace("MAPI")
+Set calendarFolder = ns.GetDefaultFolder(9) ' olFolderCalendar = 9
+
+' --- Setup dates ---
+endDate = DateAdd("d", 1, Date)
+startDate = DateAdd("ww", -WEEKS_BACK, Date)
+
+WScript.Echo "Exporting calendar..."
+WScript.Echo "  From: " & startDate
+WScript.Echo "  To:   " & endDate
+WScript.Echo "  Weeks back: " & WEEKS_BACK
+
+' Parse internal domains
+internalArr = Split(INTERNAL_DOMAINS, ",")
+
+' --- Get calendar items ---
+Set items = calendarFolder.Items
+items.Sort "[Start]", False
+items.IncludeRecurrences = True
+filterStr = "[Start] >= '" & FormatDateTime(startDate, 2) & "' AND [Start] < '" & FormatDateTime(endDate, 2) & "'"
+Set filteredItems = items.Restrict(filterStr)
+
+' --- Build JSON string ---
+jsonStr = "{""events"": ["
+comma = ""
+eventCount = 0
+
+' --- Process events ---
+For Each appt In filteredItems
+
+    ' Extract category (with . prefix)
+    category = ""
+    If Len(appt.Categories) > 0 Then
+        cats = Split(appt.Categories, ",")
+        For Each cat In cats
+            cat = Trim(cat)
+            If Left(cat, 1) = "." Then
+                category = Mid(cat, 2)
+                Exit For
+            End If
+        Next
+    End If
+
+    ' Skip if no tracked category
+    If category = "" Then
+        ' Continue to next
+    Else
         ' Get external domains from recipients
         externalDomains = ""
         On Error Resume Next
         For Each recip In appt.Recipients
             recipEmail = ""
-            
+
             ' Try to get SMTP address
-            If recip.AddressEntry.AddressEntryUserType = olExchangeUserAddressEntry Or _
-               recip.AddressEntry.AddressEntryUserType = olExchangeRemoteUserAddressEntry Then
-                recipEmail = recip.AddressEntry.GetExchangeUser.PrimarySmtpAddress
-            ElseIf recip.AddressEntry.AddressEntryUserType = olSmtpAddressEntry Then
+            ' 0 = olExchangeUserAddressEntry, 5 = olExchangeRemoteUserAddressEntry
+            If recip.AddressEntry.AddressEntryUserType = 0 Or _
+               recip.AddressEntry.AddressEntryUserType = 5 Then
+                Set objExchUser = recip.AddressEntry.GetExchangeUser
+                If Not objExchUser Is Nothing Then
+                    recipEmail = objExchUser.PrimarySmtpAddress
+                End If
+            ' 30 = olSmtpAddressEntry
+            ElseIf recip.AddressEntry.AddressEntryUserType = 30 Then
                 recipEmail = recip.AddressEntry.Address
             End If
-            
+
             ' Extract domain
             If InStr(recipEmail, "@") > 0 Then
                 recipDomain = LCase(Mid(recipEmail, InStr(recipEmail, "@") + 1))
-                
+
                 ' Check if external
                 isInternal = False
                 For i = LBound(internalArr) To UBound(internalArr)
@@ -110,8 +112,8 @@ Public Sub ExportCalendarToJSON()
                         isInternal = True
                         Exit For
                     End If
-                Next i
-                
+                Next
+
                 ' Add if external and not already in list
                 If Not isInternal And recipDomain <> "" Then
                     If InStr(externalDomains, recipDomain) = 0 Then
@@ -120,13 +122,13 @@ Public Sub ExportCalendarToJSON()
                     End If
                 End If
             End If
-        Next recip
-        On Error GoTo ErrHandler
-        
+        Next
+        On Error GoTo 0
+
         ' Build JSON for this event
         jsonStr = jsonStr & comma & "{" & vbCrLf
-        jsonStr = jsonStr & "  ""start"": """ & Format(appt.Start, "YYYY-MM-DD HH:NN") & """," & vbCrLf
-        jsonStr = jsonStr & "  ""end"": """ & Format(appt.End, "YYYY-MM-DD HH:NN") & """," & vbCrLf
+        jsonStr = jsonStr & "  ""start"": """ & FormatDate(appt.Start) & """," & vbCrLf
+        jsonStr = jsonStr & "  ""end"": """ & FormatDate(appt.End) & """," & vbCrLf
         jsonStr = jsonStr & "  ""category"": """ & UCase(category) & """," & vbCrLf
         jsonStr = jsonStr & "  ""title"": """ & CleanString(appt.Subject) & """," & vbCrLf
         jsonStr = jsonStr & "  ""minutes"": " & DateDiff("n", appt.Start, appt.End) & "," & vbCrLf
@@ -136,41 +138,48 @@ Public Sub ExportCalendarToJSON()
         jsonStr = jsonStr & "  ""recipients"": " & appt.Recipients.Count & "," & vbCrLf
         jsonStr = jsonStr & "  ""busy_status"": " & appt.BusyStatus & vbCrLf
         jsonStr = jsonStr & "}"
-        
+
         comma = ","
         eventCount = eventCount + 1
-        
-NextAppt:
-    Next appt
-    
-    ' --- Close JSON ---
-    jsonStr = jsonStr & vbCrLf & "]," & vbCrLf
-    jsonStr = jsonStr & """export_date"": """ & Format(Now, "YYYY-MM-DD HH:NN:SS") & """," & vbCrLf
-    jsonStr = jsonStr & """weeks_back"": " & WEEKS_BACK & "," & vbCrLf
-    jsonStr = jsonStr & """event_count"": " & eventCount & vbCrLf
-    jsonStr = jsonStr & "}"
-    
-    ' --- Write as UTF-8 ---
-    Set stream = CreateObject("ADODB.Stream")
-    stream.Open
-    stream.Type = 2  ' Text
-    stream.Charset = "utf-8"
-    stream.WriteText jsonStr
-    stream.SaveToFile OUTPUT_PATH, 2  ' Overwrite
-    stream.Close
-    
-    MsgBox "Export complete!" & vbCrLf & vbCrLf & _
-           "Events: " & eventCount & vbCrLf & _
-           "File: " & OUTPUT_PATH, vbInformation, "SCA Calendar Export"
-    
-    Exit Sub
-    
-ErrHandler:
-    MsgBox "Error " & Err.Number & ": " & Err.Description, vbCritical, "Export Error"
-    
-End Sub
+    End If
+Next
 
-Private Function CleanString(ByVal str As String) As String
+' --- Close JSON ---
+jsonStr = jsonStr & vbCrLf & "]," & vbCrLf
+jsonStr = jsonStr & """export_date"": """ & FormatDate(Now) & """," & vbCrLf
+jsonStr = jsonStr & """weeks_back"": " & WEEKS_BACK & "," & vbCrLf
+jsonStr = jsonStr & """event_count"": " & eventCount & vbCrLf
+jsonStr = jsonStr & "}"
+
+' --- Write as UTF-8 ---
+Set stream = CreateObject("ADODB.Stream")
+stream.Open
+stream.Type = 2  ' Text
+stream.Charset = "utf-8"
+stream.WriteText jsonStr
+stream.SaveToFile OUTPUT_PATH, 2  ' Overwrite
+stream.Close
+
+WScript.Echo ""
+WScript.Echo "Export complete!"
+WScript.Echo "  Events: " & eventCount
+WScript.Echo "  File: " & OUTPUT_PATH
+
+' --- Cleanup ---
+Set stream = Nothing
+Set filteredItems = Nothing
+Set items = Nothing
+Set calendarFolder = Nothing
+Set ns = Nothing
+Set objOutlook = Nothing
+
+WScript.Quit 0
+
+' =============================================================
+' Helper Functions
+' =============================================================
+
+Function CleanString(ByVal str)
     str = Replace(str, "\", "\\")
     str = Replace(str, """", "\""")
     str = Replace(str, vbCrLf, " ")
@@ -178,4 +187,8 @@ Private Function CleanString(ByVal str As String) As String
     str = Replace(str, vbLf, " ")
     str = Replace(str, vbTab, " ")
     CleanString = str
+End Function
+
+Function FormatDate(ByVal dt)
+    FormatDate = Year(dt) & "-" & Right("0" & Month(dt), 2) & "-" & Right("0" & Day(dt), 2) & " " & Right("0" & Hour(dt), 2) & ":" & Right("0" & Minute(dt), 2)
 End Function

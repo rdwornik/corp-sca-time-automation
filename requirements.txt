@@ -11,6 +11,7 @@ google-genai>=0.3.0
 
 # SharePoint Graph API
 requests>=2.31.0
+azure-identity>=1.15
 
 # Development dependencies (optional)
 # pytest>=7.4.0

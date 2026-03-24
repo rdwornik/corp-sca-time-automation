@@ -1,18 +1,39 @@
+# Python
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
 .venv/
 venv/
+env/
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+.idea/
+
+# OS
+desktop.ini
+Thumbs.db
+
+# Environment
+.env
+
+# Claude
+.claude/
+
+# Project data
 data/input/*
 data/output/*
 !data/**/.gitkeep
 *.log
 token_cache.json
-.vscode/*
-!.vscode/settings.json
 
-# Claude Code files
-.claude/settings.local.json
-
-# Ruff
-.ruff_cache/
+# Data (repo-specific)
+*.db

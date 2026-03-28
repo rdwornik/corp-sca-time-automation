@@ -10,18 +10,25 @@ Commands:
   upload WEEK         Upload specific week (e.g., "2025-12-07")
   upload --latest     Upload most recent week from preview
   upload --all        Upload all weeks from preview
+  upload --force      Upload even if week already exists in SharePoint
   status              Show weeks in preview and their upload status
   report              Generate manager report (Weekly Hours + Opportunities)
   report --weeks N    Report for last N weeks (default: from config)
+  catchup             Auto-detect missing weeks, generate preview
+  catchup --dry-run   Show missing weeks without generating Excel
+  catchup --max-weeks N  Limit lookback range
 """
 
 import argparse
+import os
+import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 from src.config import get_settings
 from src.excel_preview import generate_final_preview
-from src.sharepoint import post_week_entries, post_all_weeks
+from src.sharepoint import get_access_token, get_uploaded_weeks, post_week_entries, post_all_weeks
 
 import pandas as pd
 
@@ -234,6 +241,110 @@ def cmd_status():
     print()
 
 
+def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | None = None):
+    """Auto-detect missing weeks and generate preview for them.
+
+    Queries SharePoint for uploaded weeks, calculates which weeks are missing
+    up to last Sunday, runs the full pipeline, and opens the Excel preview.
+    """
+    from src.date_utils import last_sunday, sundays_between, weeks_back_to_cover
+    from src.excel_writer import write_excel_with_formatting
+
+    settings = get_settings()
+    if max_weeks is None:
+        max_weeks = settings.get("report", {}).get("weeks_back", 12)
+
+    # Step 1: authenticate early — fail fast before any heavy work
+    print("Checking SharePoint connection...")
+    token = get_access_token()
+
+    # Step 2: query SharePoint for already-uploaded weeks
+    uploaded = get_uploaded_weeks(token)
+    end_sunday = last_sunday()
+
+    if uploaded:
+        last_uploaded = max(uploaded)
+        print(f"Last uploaded week: {last_uploaded}")
+    else:
+        # No uploads found — fall back to max_weeks lookback
+        print(
+            f"No uploaded weeks found in SharePoint. "
+            f"Using last {max_weeks} weeks as range."
+        )
+        last_uploaded = last_sunday(
+            date.fromordinal(end_sunday.toordinal() - max_weeks * 7)
+        )
+
+    # Step 3: calculate missing weeks
+    missing = sundays_between(last_uploaded, end_sunday)
+
+    if not missing:
+        print(f"All caught up! All weeks up to {end_sunday} are already uploaded.")
+        return
+
+    first_missing = missing[0]
+    last_missing = missing[-1]
+    print(f"Missing {len(missing)} week(s): {first_missing} -> {last_missing}")
+
+    if dry_run:
+        print()
+        print("Weeks that would be generated:")
+        for w in missing:
+            status = "(already uploaded)" if w in uploaded else "(missing)"
+            print(f"  {w}  {status}")
+        return
+
+    # Step 4: run full pipeline with enough weeks to cover range
+    weeks_back = weeks_back_to_cover(first_missing)
+    ai_mode = "AI-enabled" if use_ai else "YAML-only"
+    print(f"Running pipeline ({ai_mode}, {weeks_back} weeks back to cover range)...")
+    print()
+
+    output_path = Path(settings["paths"]["excel_preview"])
+    df = generate_final_preview(
+        output_path=None, fill=True, weeks_back=weeks_back
+    )
+
+    # Step 5: filter DataFrame to only missing weeks
+    missing_strings = {w.isoformat() for w in missing}
+    is_data_row = df["category"] != ">>> WEEK TOTAL"
+    in_missing = df["week_beginning"].isin(missing_strings)
+    filtered_df = df[in_missing | (~is_data_row & in_missing)].copy()
+
+    # include WEEK TOTAL rows for missing weeks
+    is_total = df["category"] == ">>> WEEK TOTAL"
+    filtered_df = df[in_missing | (is_total & df["week_beginning"].isin(missing_strings))].copy()
+
+    if filtered_df.empty:
+        print(
+            "No calendar events found for the missing weeks. "
+            "Run 'python run.py export --run' to refresh calendar data."
+        )
+        return
+
+    # Step 6: write filtered Excel
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_excel_with_formatting(filtered_df, output_path)
+
+    # Step 7: open file
+    try:
+        os.startfile(str(output_path))
+    except (AttributeError, OSError):
+        try:
+            subprocess.Popen(["xdg-open", str(output_path)])
+        except FileNotFoundError:
+            pass  # not on Linux either — user can open manually
+
+    entry_count = len(filtered_df[filtered_df["category"] != ">>> WEEK TOTAL"])
+    print(f"Generated {len(missing)} week(s): {first_missing} -> {last_missing}")
+    print(f"{entry_count} entries written to: {output_path}")
+    print()
+    print("Review the Excel file, then upload:")
+    print("  python run.py upload --all     (upload all weeks)")
+    print("  python run.py upload --latest  (upload most recent week)")
+    print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="SCA Time Automation CLI",
@@ -265,6 +376,12 @@ def main():
     report_parser = subparsers.add_parser("report", help="Generate manager report (Weekly Hours + Opportunities)")
     report_parser.add_argument("--weeks", type=int, default=None, help="Number of weeks back to include (default: from config)")
 
+    # catchup command
+    catchup_parser = subparsers.add_parser("catchup", help="Auto-detect missing weeks and generate preview")
+    catchup_parser.add_argument("--no-ai", action="store_true", help="Disable AI (faster, YAML-based only)")
+    catchup_parser.add_argument("--dry-run", action="store_true", help="Show missing weeks without generating Excel")
+    catchup_parser.add_argument("--max-weeks", type=int, default=None, help="Max weeks back to look when no uploads found (default: from config)")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -282,6 +399,12 @@ def main():
             cmd_status()
         elif args.command == "report":
             cmd_report(weeks_back=args.weeks)
+        elif args.command == "catchup":
+            cmd_catchup(
+                use_ai=not args.no_ai,
+                dry_run=args.dry_run,
+                max_weeks=args.max_weeks,
+            )
         else:
             parser.print_help()
             sys.exit(1)

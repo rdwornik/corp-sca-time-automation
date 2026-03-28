@@ -195,10 +195,20 @@ def post_time_entry(entry: dict, access_token: str = None) -> dict:
         }
 
 
-def post_week_entries(df, week: str, access_token: str = None) -> list:
-    """Post all entries for a specific week."""
+def post_week_entries(df, week: str, access_token: str = None, force: bool = False) -> list:
+    """Post all entries for a specific week.
+
+    Args:
+        force: If True, upload even if week is already in SharePoint.
+    """
     if access_token is None:
         access_token = get_access_token()
+
+    # Idempotency check — skip unless forced
+    week_date = date.fromisoformat(week) if isinstance(week, str) else week
+    if not force and is_week_uploaded(week_date, access_token):
+        print(f"  WARNING: week {week} already uploaded. Use --force to re-upload.")
+        return []
 
     week_data = df[
         (df["week_beginning"] == week) & (df["category"] != ">>> WEEK TOTAL")
@@ -222,8 +232,11 @@ def post_week_entries(df, week: str, access_token: str = None) -> list:
     return results
 
 
-def post_all_weeks(df, access_token: str = None) -> dict:
+def post_all_weeks(df, access_token: str = None, force: bool = False) -> dict:
     """Post all weeks from DataFrame to SharePoint.
+
+    Args:
+        force: If True, upload even if weeks are already in SharePoint.
 
     Returns:
         dict with 'by_week' (results per week) and 'totals' (success/fail counts)
@@ -243,7 +256,7 @@ def post_all_weeks(df, access_token: str = None) -> dict:
 
     for week in weeks:
         print(f"\n[{week}]")
-        results = post_week_entries(df, week, access_token)
+        results = post_week_entries(df, week, access_token, force=force)
         all_results[week] = results
 
         week_success = sum(1 for r in results if r["success"])

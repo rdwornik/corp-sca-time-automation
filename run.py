@@ -104,13 +104,14 @@ def cmd_preview(use_ai: bool = True, weeks_back: int | None = None):
 
 
 
-def cmd_upload(week: str = None, latest: bool = False, all_weeks: bool = False):
+def cmd_upload(week: str = None, latest: bool = False, all_weeks: bool = False, force: bool = False):
     """Upload time entries to SharePoint.
 
     Args:
         week: Specific week to upload (e.g., "2025-12-07")
         latest: Upload only the most recent week
         all_weeks: Upload all weeks from preview
+        force: Upload even if week already exists in SharePoint
     """
     settings = get_settings()
     preview_path = settings["paths"]["excel_preview"]
@@ -134,7 +135,7 @@ def cmd_upload(week: str = None, latest: bool = False, all_weeks: bool = False):
     # Upload all weeks
     if all_weeks:
         print(f"Uploading all {len(weeks)} weeks from preview...")
-        result = post_all_weeks(df)
+        result = post_all_weeks(df, force=force)
 
         print()
         print(f"Upload complete: {result['totals']['success']} successful, {result['totals']['failed']} failed")
@@ -167,7 +168,7 @@ def cmd_upload(week: str = None, latest: bool = False, all_weeks: bool = False):
 
     # Upload single week
     print()
-    results = post_week_entries(df, target_week)
+    results = post_week_entries(df, target_week, force=force)
 
     # Summary
     successful = sum(1 for r in results if r["success"])
@@ -368,6 +369,7 @@ def main():
     upload_parser.add_argument("week", nargs="?", help="Week to upload (YYYY-MM-DD)")
     upload_parser.add_argument("--latest", action="store_true", help="Upload most recent week")
     upload_parser.add_argument("--all", action="store_true", help="Upload all weeks from preview")
+    upload_parser.add_argument("--force", action="store_true", help="Upload even if week already exists in SharePoint")
 
     # status command
     subparsers.add_parser("status", help="Show weeks in preview")
@@ -394,7 +396,7 @@ def main():
         elif args.command == "preview":
             cmd_preview(use_ai=not args.no_ai, weeks_back=args.weeks)
         elif args.command == "upload":
-            cmd_upload(week=args.week, latest=args.latest, all_weeks=getattr(args, 'all', False))
+            cmd_upload(week=args.week, latest=args.latest, all_weeks=getattr(args, 'all', False), force=args.force)
         elif args.command == "status":
             cmd_status()
         elif args.command == "report":

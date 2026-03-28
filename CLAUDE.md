@@ -23,6 +23,7 @@ python run.py upload --latest  # Upload most recent week
 python run.py upload 2025-12-07  # Upload specific week
 python run.py report           # Generate manager report
 python run.py export           # Show VBA export instructions
+python run.py catchup          # Auto-detect missing weeks, generate preview
 ```
 
 ## Architecture
@@ -54,7 +55,8 @@ VBA Export (Outlook) -> calendar_export.json
 | `src/gap_filler.py` | Find empty 9-17 slots, generate proportional autofill entries |
 | `src/excel_preview.py` | Orchestrates full pipeline: load -> map -> overlap -> aggregate -> fill -> write |
 | `src/excel_writer.py` | Write formatted Excel (green=original, yellow=autofilled, red=totals) |
-| `src/sharepoint.py` | Graph API client, post entries to SharePoint list |
+| `src/date_utils.py` | Sunday-based week math: last_sunday, sundays_between, weeks_back_to_cover |
+| `src/sharepoint.py` | Graph API client, query uploaded weeks, post entries to SharePoint list |
 | `src/gemini_client.py` | Gemini AI for client detection + comment generation |
 | `src/project_codes.py` | Load project codes from Excel, match client->opportunity_id |
 | `src/text_utils.py` | Text normalization (accents, case, whitespace) |
@@ -98,8 +100,12 @@ python run.py status                  # Show weeks in preview
 python run.py upload --all           # Upload all weeks
 python run.py upload --latest        # Upload most recent week
 python run.py upload 2025-12-07      # Upload specific week
+python run.py upload --all --force   # Re-upload even if weeks already exist
 python run.py report                  # Manager report
 python run.py report --weeks 8       # Manager report, last 8 weeks
+python run.py catchup                 # Auto-detect + preview missing weeks
+python run.py catchup --dry-run      # Show missing weeks without generating Excel
+python run.py catchup --max-weeks 8  # Limit lookback when no uploads found
 ```
 
 ## Test suite
@@ -110,7 +116,7 @@ python -m pytest tests/test_no_opportunity_categories.py  # Specific file
 python -m ruff check src/            # Lint check
 ```
 
-Current: 2 pytest tests in `test_no_opportunity_categories.py`. Other test files (`test_overlap_fix.py`, `test_client.py`, `test_column_order.py`, `test_no_aggregation.py`, `test_gemini_client_detection.py`, `test_upload.py`) are standalone verification scripts (run with `python tests/test_*.py`), not pytest tests.
+Current: 41 pytest tests across `test_no_opportunity_categories.py`, `test_date_utils.py`, `test_sharepoint_queries.py`, `test_catchup.py`, `test_upload_idempotency.py`. Other test files (`test_overlap_fix.py`, `test_client.py`, `test_column_order.py`, `test_no_aggregation.py`, `test_gemini_client_detection.py`, `test_upload.py`) are standalone verification scripts (run with `python tests/test_*.py`), not pytest tests.
 
 ## Dependencies
 

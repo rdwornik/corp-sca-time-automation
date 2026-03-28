@@ -92,6 +92,80 @@ def detect_client_from_comment(comment: str, project_codes: list[str]) -> str:
     return detect_client_with_context(comment, "", project_codes)
 
 
+def ask_gemini_allocation(
+    gap_hours: float,
+    week_date: str,
+    available_categories: list[str],
+    week_context: str,
+) -> dict[str, float]:
+    """
+    Ask Gemini to allocate gap_hours across available_categories.
+
+    Used as a fallback when the weighted-blend algorithm has no profile to work with
+    (empty week, no historical data, or single available category).
+
+    Args:
+        gap_hours: Total hours to allocate
+        week_date: Week beginning date string (YYYY-MM-DD), for context only
+        available_categories: AUTOFILL_CATEGORIES eligible for this week (NEVER_AUTOFILL excluded)
+        week_context: Brief description of the week's work activities
+
+    Returns:
+        {category: hours} dict with values rounded to 0.5h.
+        May not sum exactly to gap_hours due to rounding.
+        Returns empty dict on API failure or unparseable response.
+    """
+    import json
+
+    if not available_categories:
+        return {}
+
+    prompt = f"""You are allocating {gap_hours} hours of unlogged work time for the week of {week_date}.
+
+Week context: {week_context}
+
+Available categories (choose from these only): {", ".join(available_categories)}
+
+Distribute the {gap_hours} hours across the most relevant categories.
+Rules:
+- Only use categories from the list above
+- Each allocated value must be a multiple of 0.5
+- Total must equal {gap_hours}
+- Omit categories with 0 hours
+
+Reply with ONLY a JSON object mapping category names to hours, e.g.:
+{{"Admin": 4.0, "Internal Meeting": 2.5}}"""
+
+    raw = call_gemini(prompt)
+    if not raw:
+        return {}
+
+    # Strip markdown code fences if present
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+
+    try:
+        parsed = json.loads(cleaned)
+    except (json.JSONDecodeError, ValueError):
+        return {}
+
+    if not isinstance(parsed, dict):
+        return {}
+
+    # Validate: only keep known categories, round to 0.5h, drop zeros
+    valid_set = set(available_categories)
+    result: dict[str, float] = {}
+    for cat, hours in parsed.items():
+        if cat in valid_set:
+            rounded = round(float(hours) * 2) / 2
+            if rounded > 0:
+                result[cat] = rounded
+
+    return result
+
+
 def generate_autofill_comment(category: str, client: str, week_context: str) -> str:
     """Generate a realistic comment for autofilled time entry."""
     prompt = f"""Generate a brief, professional time entry comment for:

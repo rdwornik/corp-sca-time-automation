@@ -4,9 +4,7 @@ Tests the date-range detection and filtering logic using mocked SharePoint
 and pipeline calls. Does not hit real endpoints or write real Excel files.
 """
 
-import pytest
 from datetime import date
-from unittest.mock import patch, MagicMock
 import pandas as pd
 
 from src.date_utils import last_sunday, sundays_between
@@ -94,7 +92,6 @@ class TestCatchupFallback:
         max_weeks = 4
         end = date(2025, 3, 23)  # known Sunday for determinism
         # Simulate: last_uploaded = end - max_weeks * 7
-        from datetime import timedelta
         last_uploaded = last_sunday(
             date.fromordinal(end.toordinal() - max_weeks * 7)
         )

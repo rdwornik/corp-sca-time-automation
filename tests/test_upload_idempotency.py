@@ -1,8 +1,7 @@
 """Tests for upload idempotency guard in post_week_entries."""
 
-import pytest
 import pandas as pd
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from datetime import date
 
 from src.sharepoint import post_week_entries, post_all_weeks

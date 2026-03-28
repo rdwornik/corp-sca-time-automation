@@ -126,7 +126,7 @@ def is_week_uploaded(week_date: date, access_token: str = None) -> bool:
     iso = week_date.isoformat()
     url = (
         get_graph_url()
-        + f"?$expand=fields($select=WeekBeginning)"
+        + "?$expand=fields($select=WeekBeginning)"
         + f"&$filter=fields/WeekBeginning eq '{iso}T00:00:00Z'&$top=1"
     )
 

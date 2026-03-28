@@ -6,6 +6,7 @@ import pandas as pd
 from pathlib import Path
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
+from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 
@@ -34,6 +35,12 @@ def write_excel_with_formatting(df: pd.DataFrame, output_path: Path) -> None:
     columns = {cell.value: cell.column for cell in ws[1]}
     category_col = columns.get("category")
     autofill_col = columns.get("is_autofilled")
+    hours_col = columns.get("hours")
+    hours_col_letter = get_column_letter(hours_col) if hours_col else None
+
+    # Track first/last data row per week for SUM formula ranges
+    week_data_start: int | None = None
+    week_data_end: int | None = None
 
     # Apply colors to data rows
     for row_idx in range(2, ws.max_row + 1):
@@ -47,10 +54,23 @@ def write_excel_with_formatting(df: pd.DataFrame, output_path: Path) -> None:
         # Determine fill color
         if category_value == ">>> WEEK TOTAL":
             fill = red_fill
-        elif is_autofilled:
-            fill = yellow_fill
+            # Replace static Hours value with SUM formula over this week's data rows
+            if hours_col_letter and week_data_start is not None and week_data_end is not None:
+                formula = f"=SUM({hours_col_letter}{week_data_start}:{hours_col_letter}{week_data_end})"
+                ws.cell(row=row_idx, column=hours_col).value = formula
+            # Reset trackers for next week
+            week_data_start = None
+            week_data_end = None
         else:
-            fill = green_fill
+            # Track data rows for current week
+            if week_data_start is None:
+                week_data_start = row_idx
+            week_data_end = row_idx
+
+            if is_autofilled:
+                fill = yellow_fill
+            else:
+                fill = green_fill
 
         # Apply to all cells in row
         for col_idx in range(1, ws.max_column + 1):

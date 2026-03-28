@@ -3,6 +3,8 @@ SharePoint Graph API connector for SCA Time Tracker.
 """
 
 import requests
+from datetime import date
+from typing import Optional
 from azure.identity import AzureCliCredential
 from src.config import get_settings
 
@@ -43,6 +45,100 @@ def get_access_token() -> str:
             f"Cannot get Graph token: {e}\n"
             f"Run 'az login' first, then retry."
         ) from e
+
+
+def _parse_sharepoint_date(value: str) -> date:
+    """Parse SharePoint date string like '2025-12-07T00:00:00Z' to datetime.date."""
+    return date.fromisoformat(value[:10])
+
+
+def _handle_response_errors(response: requests.Response, context: str) -> None:
+    """Raise SystemExit on auth/permission errors."""
+    if response.status_code == 401:
+        raise SystemExit(
+            f"Token expired or invalid during {context}. Run 'az login' first."
+        )
+    if response.status_code == 403:
+        raise SystemExit(
+            f"Access denied to SharePoint list during {context}. Check permissions."
+        )
+
+
+def get_uploaded_weeks(access_token: str = None) -> set[date]:
+    """Return all WeekBeginning dates already uploaded to SharePoint.
+
+    Handles pagination via @odata.nextLink.
+    Returns empty set if list has no entries.
+    """
+    if access_token is None:
+        access_token = get_access_token()
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+    }
+
+    url = get_graph_url() + "?$expand=fields($select=WeekBeginning)&$top=5000"
+    uploaded = set()
+
+    while url:
+        response = requests.get(url, headers=headers)
+        _handle_response_errors(response, "get_uploaded_weeks")
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Unexpected response from SharePoint: {response.status_code} {response.text}"
+            )
+
+        data = response.json()
+        for item in data.get("value", []):
+            raw = item.get("fields", {}).get("WeekBeginning")
+            if raw:
+                uploaded.add(_parse_sharepoint_date(raw))
+
+        url = data.get("@odata.nextLink")
+
+    return uploaded
+
+
+def get_last_uploaded_week(access_token: str = None) -> Optional[date]:
+    """Return the most recent WeekBeginning date uploaded to SharePoint.
+
+    Returns None if no entries exist.
+    """
+    uploaded = get_uploaded_weeks(access_token)
+    return max(uploaded) if uploaded else None
+
+
+def is_week_uploaded(week_date: date, access_token: str = None) -> bool:
+    """Check whether any entries exist for the given week date.
+
+    Uses a server-side $filter for efficiency instead of fetching all weeks.
+    """
+    if access_token is None:
+        access_token = get_access_token()
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+    }
+
+    iso = week_date.isoformat()
+    url = (
+        get_graph_url()
+        + f"?$expand=fields($select=WeekBeginning)"
+        + f"&$filter=fields/WeekBeginning eq '{iso}T00:00:00Z'&$top=1"
+    )
+
+    response = requests.get(url, headers=headers)
+    _handle_response_errors(response, "is_week_uploaded")
+
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Unexpected response from SharePoint: {response.status_code} {response.text}"
+        )
+
+    return len(response.json().get("value", [])) > 0
 
 
 def post_time_entry(entry: dict, access_token: str = None) -> dict:

@@ -25,6 +25,11 @@ ai:
   enabled: true
   model: "gemini-3-flash-preview"
 
+# Gap filler algorithm configuration
+gap_filler:
+  current_weight: 0.5   # Weight for current week's distribution (0.0-1.0)
+  history_window: 4     # Number of prior weeks to include in historical profile
+
 # Manager report configuration
 report:
   weeks_back: 12

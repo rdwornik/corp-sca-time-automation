@@ -200,17 +200,19 @@ def generate_autofill_entries(
     use_ai: bool = True,
 ) -> list[dict]:
     """
-    Generate new entries to fill empty hours, distributed by category proportion.
-    Ensures total hours equals exactly empty_hours (no rounding errors).
+    Generate new entries to fill empty hours using weighted-blend algorithm.
+
+    Blends current week's category distribution with a historical profile from the
+    last N weeks. Falls back to Gemini allocation when no profile is available.
 
     Args:
         events: Calendar events list
-        aggregated_df: Aggregated DataFrame
+        aggregated_df: Full aggregated DataFrame (all weeks, used for history)
         week: Week beginning date (YYYY-MM-DD)
         empty_hours: Number of hours to fill
-        use_ai: If True, use Gemini AI for comment generation
+        use_ai: If True, use Gemini AI for comment generation and fallback allocation
     """
-    from src.gemini_client import generate_autofill_comment
+    from src.gemini_client import generate_autofill_comment, ask_gemini_allocation
     from src.config import get_settings
 
     # Categories that should NEVER have opportunity_id or client
@@ -222,7 +224,16 @@ def generate_autofill_entries(
         "Time Off",
     }
 
-    distribution = calculate_category_distribution(aggregated_df, week)
+    settings = get_settings()
+    gf_cfg = settings.get("gap_filler", {})
+    current_weight = float(gf_cfg.get("current_weight", 0.5))
+    history_window = int(gf_cfg.get("history_window", 4))
+
+    # Build current week and historical profiles
+    current_profile = calculate_category_distribution(aggregated_df, week)
+    historical_profile = build_historical_profile(
+        aggregated_df, week, window_size=history_window
+    )
 
     # Build context for Gemini from week activities
     week_data = aggregated_df[
@@ -230,60 +241,80 @@ def generate_autofill_entries(
         & (aggregated_df["category"] != ">>> WEEK TOTAL")
     ]
     if "comments" in week_data.columns and not week_data["comments"].empty:
-        week_context = "; ".join(week_data["comments"].head(3).tolist())
+        valid_comments = week_data["comments"].dropna().head(3).tolist()
+        week_context = "; ".join(valid_comments) if valid_comments else "General work"
     else:
         week_context = "General work"
 
-    # Calculate hours with rounding
+    # Determine allocation path
+    allocation_by_key: dict[tuple[str, str, str], float] = {}
+
+    if historical_profile:
+        # Weighted blend path
+        allocation_by_key = allocate_gap_hours(
+            empty_hours, current_profile, historical_profile, current_weight
+        )
+
+    if not allocation_by_key and use_ai and settings["ai"]["enabled"]:
+        # Gemini fallback: no history or blend produced empty result
+        gemini_alloc = ask_gemini_allocation(
+            empty_hours, week, list(AUTOFILL_CATEGORIES), week_context
+        )
+        # Convert category-only dict to (cat, "", "") keyed dict
+        for cat, hours in gemini_alloc.items():
+            # Inherit client/opp_id from current week profile if a matching key exists
+            matched_key = next(
+                (k for k in current_profile if k[0] == cat), (cat, "", "")
+            )
+            allocation_by_key[matched_key] = hours
+
+    if not allocation_by_key:
+        # Hard fallback: current profile proportions (original behaviour)
+        for (cat, client, opp_id), proportion in current_profile.items():
+            hours = round(empty_hours * proportion * 2) / 2
+            if hours > 0:
+                allocation_by_key[(cat, client, opp_id)] = hours
+
+    # Build entry dicts
     new_entries = []
     total_allocated = 0.0
+    ai_enabled = settings["ai"]["enabled"] and use_ai
 
-    for (cat, client, opp_id), proportion in distribution.items():
-        hours = round(empty_hours * proportion * 2) / 2  # Round to 0.5
-        if hours > 0:
-            # Clear client/opportunity_id for non-sales categories
-            if cat in NO_OPPORTUNITY_ID_CATEGORIES:
-                client = ""
-                opp_id = ""
+    for (cat, client, opp_id), hours in allocation_by_key.items():
+        if hours <= 0:
+            continue
 
-            # Generate comment for autofilled entry
-            settings = get_settings()
-            ai_enabled = settings["ai"]["enabled"] and use_ai
+        if cat in NO_OPPORTUNITY_ID_CATEGORIES:
+            client = ""
+            opp_id = ""
 
-            comment = None
-            if ai_enabled:
-                comment = generate_autofill_comment(cat, client, week_context)
+        comment = None
+        if ai_enabled:
+            comment = generate_autofill_comment(cat, client, week_context)
+        if not comment:
+            comment = f"{cat} work for {client}" if client else f"{cat} work"
 
-            if not comment:
-                # Fallback to simple comment
-                if client:
-                    comment = f"{cat} work for {client}"
-                else:
-                    comment = f"{cat} work"
+        new_entries.append(
+            {
+                "week_beginning": week,
+                "category": cat,
+                "client": client,
+                "hours": hours,
+                "opportunity_id": opp_id,
+                "comments": comment,
+                "external_domains": "",
+                "needs_review": True,
+                "is_autofilled": True,
+                "status": "NEW",
+            }
+        )
+        total_allocated += hours
 
-            new_entries.append(
-                {
-                    "week_beginning": week,
-                    "category": cat,
-                    "client": client,
-                    "hours": hours,
-                    "opportunity_id": opp_id,
-                    "comments": comment,
-                    "external_domains": "",
-                    "needs_review": True,
-                    "is_autofilled": True,
-                    "status": "NEW",
-                }
-            )
-            total_allocated += hours
-
-    # Fix rounding errors - ensure total equals exactly empty_hours
+    # Fix rounding: keep total equal to empty_hours
     if new_entries and abs(total_allocated - empty_hours) > 0.01:
         difference = empty_hours - total_allocated
-        # Add/subtract difference to the largest entry (most visible)
         largest_entry = max(new_entries, key=lambda x: x["hours"])
         largest_entry["hours"] = round((largest_entry["hours"] + difference) * 2) / 2
-        # Ensure we don't create negative hours
         if largest_entry["hours"] < 0:
             largest_entry["hours"] = 0
 

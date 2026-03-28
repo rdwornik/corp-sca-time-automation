@@ -101,6 +101,97 @@ def calculate_category_distribution(df: pd.DataFrame, week: str) -> dict[str, fl
     return distribution
 
 
+def build_historical_profile(
+    all_weeks_data: pd.DataFrame,
+    current_week: str,
+    window_size: int = 4,
+) -> dict[tuple[str, str, str], float]:
+    """
+    Build a category profile from the last window_size weeks of non-autofilled data.
+
+    Excludes current_week from the history window. Only includes AUTOFILL_CATEGORIES;
+    NEVER_AUTOFILL categories are excluded even if present in the data.
+
+    Returns {(category, client, opp_id): proportion} summing to 1.0,
+    or empty dict if no historical data is available (signals Gemini fallback).
+    """
+    prior_weeks = sorted(
+        [w for w in all_weeks_data["week_beginning"].unique() if w < current_week],
+        reverse=True,
+    )
+    history_weeks = prior_weeks[:window_size]
+
+    if not history_weeks:
+        return {}
+
+    history_data = all_weeks_data[
+        (all_weeks_data["week_beginning"].isin(history_weeks))
+        & (all_weeks_data["category"].isin(AUTOFILL_CATEGORIES))
+        & (~all_weeks_data["category"].isin(NEVER_AUTOFILL))
+        & (~all_weeks_data["is_autofilled"])
+    ]
+
+    if history_data.empty:
+        return {}
+
+    total = history_data["hours"].sum()
+    if total == 0:
+        return {}
+
+    profile: dict[tuple[str, str, str], float] = {}
+    for _, row in history_data.iterrows():
+        cat = row["category"]
+        client = str(row.get("client", "") or "")
+        opp_id = str(row.get("opportunity_id", "") or "")
+        key = (cat, client, opp_id)
+        profile[key] = profile.get(key, 0.0) + row["hours"] / total
+
+    return profile
+
+
+def allocate_gap_hours(
+    gap_hours: float,
+    current_week_profile: dict[tuple[str, str, str], float],
+    historical_profile: dict[tuple[str, str, str], float],
+    current_weight: float = 0.5,
+) -> dict[tuple[str, str, str], float]:
+    """
+    Blend current week and historical profiles, then allocate gap_hours.
+
+    Returns {(category, client, opp_id): hours} rounded to 0.5h.
+    NEVER_AUTOFILL categories are excluded from the output.
+    Returns empty dict if blended profile is empty (signals Gemini fallback).
+    """
+    history_weight = 1.0 - current_weight
+    all_keys = set(current_week_profile) | set(historical_profile)
+    # Safety: strip any NEVER_AUTOFILL that shouldn't be present
+    all_keys = {k for k in all_keys if k[0] not in NEVER_AUTOFILL}
+
+    if not all_keys:
+        return {}
+
+    blended: dict[tuple[str, str, str], float] = {}
+    for key in all_keys:
+        cur = current_week_profile.get(key, 0.0) * current_weight
+        hist = historical_profile.get(key, 0.0) * history_weight
+        blended[key] = cur + hist
+
+    # Normalize after filtering
+    total_blend = sum(blended.values())
+    if total_blend == 0:
+        return {}
+    blended = {k: v / total_blend for k, v in blended.items()}
+
+    # Round each allocation to nearest 0.5h; drop zero-hour entries
+    allocation: dict[tuple[str, str, str], float] = {}
+    for key, proportion in blended.items():
+        hours = round(gap_hours * proportion * 2) / 2
+        if hours > 0:
+            allocation[key] = hours
+
+    return allocation
+
+
 def generate_autofill_entries(
     events: list,
     aggregated_df: pd.DataFrame,

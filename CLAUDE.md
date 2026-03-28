@@ -116,7 +116,7 @@ python -m pytest tests/test_no_opportunity_categories.py  # Specific file
 python -m ruff check src/            # Lint check
 ```
 
-Current: 41 pytest tests across `test_no_opportunity_categories.py`, `test_date_utils.py`, `test_sharepoint_queries.py`, `test_catchup.py`, `test_upload_idempotency.py`. Other test files (`test_overlap_fix.py`, `test_client.py`, `test_column_order.py`, `test_no_aggregation.py`, `test_gemini_client_detection.py`, `test_upload.py`) are standalone verification scripts (run with `python tests/test_*.py`), not pytest tests.
+Current: 45 pytest tests across `test_no_opportunity_categories.py`, `test_date_utils.py`, `test_sharepoint_queries.py`, `test_catchup.py`, `test_upload_idempotency.py`, `test_excel_writer.py`. Other test files (`test_overlap_fix.py`, `test_client.py`, `test_column_order.py`, `test_no_aggregation.py`, `test_gemini_client_detection.py`, `test_upload.py`) are standalone verification scripts (run with `python tests/test_*.py`), not pytest tests.
 
 ## Dependencies
 

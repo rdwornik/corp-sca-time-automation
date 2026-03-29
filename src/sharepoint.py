@@ -2,11 +2,14 @@
 SharePoint Graph API connector for SCA Time Tracker.
 """
 
+import os
 import subprocess
+from pathlib import Path
 import requests
 from datetime import date
 from typing import Optional
-from src.config import get_env, get_settings
+from dotenv import load_dotenv
+from src.config import get_settings
 
 
 def get_graph_url() -> str:
@@ -38,12 +41,14 @@ def get_access_token() -> str:
     """Get Graph API access token.
 
     Fallback chain:
-    1. GRAPH_ACCESS_TOKEN env var (manual override)
+    1. GRAPH_ACCESS_TOKEN in repo-root .env (or already in environment)
     2. `az account get-access-token` CLI (auto-refreshes from az login session)
     3. Raise SystemExit prompting the user to run `az login`
     """
-    # 1. Manual env var override
-    token = get_env("GRAPH_ACCESS_TOKEN")
+    # 1. Load repo-root .env, then check env (covers both .env file and shell exports)
+    _repo_env = Path(__file__).parent.parent / ".env"
+    load_dotenv(_repo_env, override=False)
+    token = os.environ.get("GRAPH_ACCESS_TOKEN", "").strip()
     if token:
         return token
 

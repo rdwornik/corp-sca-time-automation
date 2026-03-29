@@ -54,7 +54,9 @@ def split_multiday_events(events: list) -> list:
 
 
 def generate_preview(
-    output_path: str | Path | None = None, weeks_back: int | None = None
+    output_path: str | Path | None = None,
+    weeks_back: int | None = None,
+    verbose: bool = False,
 ) -> pd.DataFrame:
     """Generate Excel preview from calendar events.
 
@@ -63,6 +65,7 @@ def generate_preview(
     Args:
         output_path: Path to output Excel file
         weeks_back: If specified, filter to last N weeks
+        verbose: If True, print progress at each pipeline stage
     """
 
     # Categories that should NEVER have opportunity_id or client
@@ -74,13 +77,22 @@ def generate_preview(
         "Time Off",
     }
 
+    if verbose:
+        print("Loading calendar events...")
     events = load_and_filter(weeks_back=weeks_back)
+    if verbose:
+        print(f"Loaded {len(events)} events")
+
     events = split_multiday_events(events)
 
+    if verbose:
+        print("Resolving overlaps...")
     # Resolve overlaps - only highest priority per hour
     events = resolve_overlaps_by_hour(events, lambda e: map_category(e["category"]))
 
     project_codes = load_project_codes()
+    if verbose:
+        print("Mapping categories and detecting clients...")
     rows = []
 
     for event in events:
@@ -127,7 +139,9 @@ def generate_preview(
 
 
 def generate_aggregated_preview(
-    output_path: str | Path | None = None, weeks_back: int | None = None
+    output_path: str | Path | None = None,
+    weeks_back: int | None = None,
+    verbose: bool = False,
 ) -> pd.DataFrame:
     """
     Generate Excel preview with WEEK TOTAL summaries.
@@ -136,6 +150,7 @@ def generate_aggregated_preview(
     Args:
         output_path: Path to output Excel file
         weeks_back: If specified, filter to last N weeks
+        verbose: If True, print progress at each pipeline stage
     """
     from src.aggregator import aggregate_entries, add_week_summaries
 
@@ -143,7 +158,9 @@ def generate_aggregated_preview(
     if output_path is None:
         output_path = Path(settings["paths"]["excel_preview"])
 
-    df = generate_preview(output_path=None, weeks_back=weeks_back)
+    df = generate_preview(output_path=None, weeks_back=weeks_back, verbose=verbose)
+    if verbose:
+        print("Sorting entries...")
     # aggregate_entries now just sorts and prepares data (no aggregation)
     sorted_df = aggregate_entries(df)
     # Add WEEK TOTAL summary rows
@@ -160,6 +177,7 @@ def generate_final_preview(
     output_path: str | Path | None = None,
     fill: bool = True,
     weeks_back: int | None = None,
+    verbose: bool = False,
 ) -> pd.DataFrame:
     """Generate final Excel preview with gap filling and colors.
 
@@ -167,6 +185,7 @@ def generate_final_preview(
         output_path: Path to output Excel file
         fill: If True, fill gaps to reach 40h target
         weeks_back: If specified, filter to last N weeks
+        verbose: If True, print progress at each pipeline stage
     """
     from src.excel_writer import write_excel_with_formatting
 
@@ -174,14 +193,18 @@ def generate_final_preview(
     if output_path is None:
         output_path = Path(settings["paths"]["excel_preview"])
 
-    df = generate_aggregated_preview(output_path=None, weeks_back=weeks_back)
+    df = generate_aggregated_preview(output_path=None, weeks_back=weeks_back, verbose=verbose)
 
     if fill:
+        if verbose:
+            print("Filling gaps...")
         df = fill_gaps_with_new_entries(df)
 
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    if verbose:
+        print("Writing Excel...")
     write_excel_with_formatting(df, output_path)
 
     return df

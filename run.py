@@ -23,6 +23,7 @@ import argparse
 import os
 import subprocess
 import sys
+import time
 from datetime import date
 from pathlib import Path
 
@@ -71,6 +72,7 @@ def cmd_export(run: bool = False, weeks: int = 4):
 
 def cmd_preview(use_ai: bool = True, weeks_back: int | None = None):
     """Generate Excel preview with time entries."""
+    t0 = time.time()
     settings = get_settings()
 
     # Use default from config if not specified
@@ -86,16 +88,18 @@ def cmd_preview(use_ai: bool = True, weeks_back: int | None = None):
 
     # Generate preview using the complete workflow in excel_preview
     output_path = settings["paths"]["excel_preview"]
-    df = generate_final_preview(output_path, fill=True, weeks_back=weeks_back)
+    df = generate_final_preview(output_path, fill=True, weeks_back=weeks_back, verbose=True)
 
     # Count entries (excluding summary rows)
     entry_count = len(df[df["category"] != ">>> WEEK TOTAL"])
     week_count = df[df["category"] != ">>> WEEK TOTAL"]["week_beginning"].nunique()
 
+    print()
     print(f"Generated {entry_count} entries across {week_count} weeks")
     print(f"Preview saved: {output_path}")
     print()
 
+    print("Opening preview...")
     try:
         os.startfile(str(output_path))
     except (AttributeError, OSError):
@@ -104,6 +108,8 @@ def cmd_preview(use_ai: bool = True, weeks_back: int | None = None):
         except FileNotFoundError:
             pass
 
+    print(f"Done in {int(time.time() - t0)}s")
+    print()
     print("Next: python run.py upload --all")
     print()
 
@@ -256,6 +262,7 @@ def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | Non
     from src.date_utils import last_sunday, sundays_between, weeks_back_to_cover
     from src.excel_writer import write_excel_with_formatting
 
+    t0 = time.time()
     settings = get_settings()
     if max_weeks is None:
         max_weeks = settings.get("report", {}).get("weeks_back", 12)
@@ -304,7 +311,7 @@ def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | Non
     weeks_back = weeks_back_to_cover(first_missing)
 
     # Auto-refresh calendar data before generating preview
-    print("Refreshing calendar data...")
+    print(f"Exporting calendar ({weeks_back} weeks)...")
     vbs_path = Path(__file__).parent / "scripts" / "calendar_export.vbs"
     try:
         result = subprocess.run(
@@ -319,12 +326,12 @@ def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | Non
         print(f"Warning: Could not run VBS export ({e}). Continuing with existing calendar_export.json.")
 
     ai_mode = "AI-enabled" if use_ai else "YAML-only"
-    print(f"Running pipeline ({ai_mode}, {weeks_back} weeks back to cover range)...")
+    print(f"Running pipeline ({ai_mode}, {weeks_back} weeks back)...")
     print()
 
     output_path = Path(settings["paths"]["excel_preview"])
     df = generate_final_preview(
-        output_path=None, fill=True, weeks_back=weeks_back
+        output_path=None, fill=True, weeks_back=weeks_back, verbose=True
     )
 
     # Step 5: filter DataFrame to only missing weeks
@@ -345,10 +352,12 @@ def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | Non
         return
 
     # Step 6: write filtered Excel
+    print("Writing Excel...")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     write_excel_with_formatting(filtered_df, output_path)
 
     # Step 7: open file
+    print("Opening preview...")
     try:
         os.startfile(str(output_path))
     except (AttributeError, OSError):
@@ -358,8 +367,10 @@ def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | Non
             pass  # not on Linux either — user can open manually
 
     entry_count = len(filtered_df[filtered_df["category"] != ">>> WEEK TOTAL"])
+    print()
     print(f"Generated {len(missing)} week(s): {first_missing} -> {last_missing}")
     print(f"{entry_count} entries written to: {output_path}")
+    print(f"Done in {int(time.time() - t0)}s")
     print()
     print("Next: python run.py upload --all")
     print()

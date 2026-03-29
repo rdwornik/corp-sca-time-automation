@@ -34,6 +34,23 @@ from src.sharepoint import get_access_token, get_uploaded_weeks, post_week_entri
 import pandas as pd
 
 
+def _check_excel_writable(path: Path) -> None:
+    """Fail fast if Excel output file is locked by another process (e.g., Excel is open).
+
+    Call this before any expensive pipeline work so the user isn't waiting 20+ minutes
+    only to hit a PermissionError at the write step.
+    """
+    p = Path(path)
+    if not p.exists():
+        return
+    try:
+        p.open("r+b").close()
+    except PermissionError:
+        print("Error: Cannot write Excel — close the file first and retry.")
+        print(f"  File: {p}")
+        sys.exit(1)
+
+
 def cmd_export(run: bool = False, weeks: int = 4):
     """Export calendar from Outlook. With --run, executes VBS script directly."""
     if run:
@@ -79,6 +96,10 @@ def cmd_preview(use_ai: bool = True, weeks_back: int | None = None):
     if weeks_back is None:
         weeks_back = settings.get("report", {}).get("weeks_back", 12)
 
+    # Fail fast before running pipeline if Excel is open/locked
+    output_path = settings["paths"]["excel_preview"]
+    _check_excel_writable(Path(output_path))
+
     # Check AI configuration
     ai_enabled = settings["ai"]["enabled"] and use_ai
     mode = "AI-enabled" if ai_enabled else "YAML-only"
@@ -86,8 +107,6 @@ def cmd_preview(use_ai: bool = True, weeks_back: int | None = None):
     print(f"Generating preview ({mode}, last {weeks_back} weeks)...")
     print()
 
-    # Generate preview using the complete workflow in excel_preview
-    output_path = settings["paths"]["excel_preview"]
     df = generate_final_preview(output_path, fill=True, weeks_back=weeks_back, verbose=True)
 
     # Count entries (excluding summary rows)
@@ -307,6 +326,10 @@ def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | Non
             print(f"  {w}  {status}")
         return
 
+    # Fail fast before pipeline if Excel is open/locked
+    output_path = Path(settings["paths"]["excel_preview"])
+    _check_excel_writable(output_path)
+
     # Step 4: run full pipeline with enough weeks to cover range
     weeks_back = weeks_back_to_cover(first_missing)
 
@@ -354,7 +377,12 @@ def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | Non
     # Step 6: write filtered Excel
     print("Writing Excel...")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    write_excel_with_formatting(filtered_df, output_path)
+    try:
+        write_excel_with_formatting(filtered_df, output_path)
+    except PermissionError:
+        print("Error: Cannot write Excel — close the file first and retry.")
+        print(f"  File: {output_path}")
+        sys.exit(1)
 
     # Step 7: open file
     print("Opening preview...")

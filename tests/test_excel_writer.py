@@ -149,3 +149,65 @@ class TestWeekTotalSumFormula:
 
         # Formulas must not overlap
         assert str(row1) not in formula2, "Week 2 formula references week 1 rows"
+
+
+class TestPermissionErrorHandling:
+    """Tests for PermissionError fast-fail and write-guard behavior."""
+
+    def test_check_excel_writable_nonexistent_file(self, tmp_path):
+        """Non-existent output path should pass silently (no file = no lock)."""
+        from run import _check_excel_writable
+
+        path = tmp_path / "does_not_exist.xlsx"
+        # Should not raise
+        _check_excel_writable(path)
+
+    def test_check_excel_writable_unlocked_file(self, tmp_path):
+        """Existing writable file should pass silently."""
+        from run import _check_excel_writable
+
+        path = tmp_path / "unlocked.xlsx"
+        path.write_bytes(b"dummy")
+        # Should not raise
+        _check_excel_writable(path)
+
+    def test_check_excel_writable_locked_file_exits(self, tmp_path, monkeypatch):
+        """File locked by another process should print error and exit."""
+        from run import _check_excel_writable
+
+        path = tmp_path / "locked.xlsx"
+        path.write_bytes(b"dummy")
+
+        def _raise_permission(*args, **kwargs):
+            raise PermissionError("File locked")
+
+        monkeypatch.setattr(path.__class__, "open", _raise_permission)
+
+        with pytest.raises(SystemExit) as exc_info:
+            _check_excel_writable(path)
+        assert exc_info.value.code == 1
+
+    def test_write_excel_permission_error_raises_systemexit(self, tmp_path, monkeypatch):
+        """write_excel_with_formatting PermissionError must surface as SystemExit."""
+        import pandas as pd
+        from src.excel_preview import generate_final_preview
+
+        def _raise_permission(*args, **kwargs):
+            raise PermissionError("File locked by Excel")
+
+        monkeypatch.setattr("src.excel_writer.write_excel_with_formatting", _raise_permission)
+        # Stub upstream pipeline so only the write step runs
+        monkeypatch.setattr(
+            "src.excel_preview.generate_aggregated_preview",
+            lambda **kw: pd.DataFrame([
+                {"week_beginning": "2025-03-23", "category": "Admin", "hours": 8.0,
+                 "is_autofilled": False, "comments": None, "opportunity_id": None,
+                 "client": None, "needs_review": False, "status": "NEW",
+                 "title": "x", "external_domains": ""},
+            ]),
+        )
+
+        output = tmp_path / "preview.xlsx"
+        with pytest.raises(SystemExit) as exc_info:
+            generate_final_preview(output_path=output, fill=False)
+        assert "Cannot write Excel" in str(exc_info.value)

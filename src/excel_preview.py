@@ -168,7 +168,12 @@ def generate_aggregated_preview(
 
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    df_with_summary.to_excel(output_path, index=False)
+    try:
+        df_with_summary.to_excel(output_path, index=False)
+    except PermissionError:
+        raise SystemExit(
+            f"Error: Cannot write Excel — close the file first and retry.\n  File: {output_path}"
+        )
 
     return df_with_summary
 
@@ -205,6 +210,11 @@ def generate_final_preview(
 
     if verbose:
         print("Writing Excel...")
-    write_excel_with_formatting(df, output_path)
+    try:
+        write_excel_with_formatting(df, output_path)
+    except PermissionError:
+        raise SystemExit(
+            f"Error: Cannot write Excel — close the file first and retry.\n  File: {output_path}"
+        )
 
     return df

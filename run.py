@@ -93,13 +93,18 @@ def cmd_preview(use_ai: bool = True, weeks_back: int | None = None):
     week_count = df[df["category"] != ">>> WEEK TOTAL"]["week_beginning"].nunique()
 
     print(f"Generated {entry_count} entries across {week_count} weeks")
+    print(f"Preview saved: {output_path}")
     print()
-    print(f"Preview generated: {output_path}")
-    print()
-    print("Review the Excel file and then:")
-    print("  - Upload all weeks:    python run.py upload --all")
-    print("  - Upload latest week:  python run.py upload --latest")
-    print("  - Upload specific week: python run.py upload 2025-12-07")
+
+    try:
+        os.startfile(str(output_path))
+    except (AttributeError, OSError):
+        try:
+            subprocess.Popen(["xdg-open", str(output_path)])
+        except FileNotFoundError:
+            pass
+
+    print("Next: python run.py upload --all   or   python run.py upload --latest")
     print()
 
 
@@ -340,9 +345,7 @@ def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | Non
     print(f"Generated {len(missing)} week(s): {first_missing} -> {last_missing}")
     print(f"{entry_count} entries written to: {output_path}")
     print()
-    print("Review the Excel file, then upload:")
-    print("  python run.py upload --all     (upload all weeks)")
-    print("  python run.py upload --latest  (upload most recent week)")
+    print("Next: python run.py upload --all   or   python run.py upload --latest")
     print()
 
 

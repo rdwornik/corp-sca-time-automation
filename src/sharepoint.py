@@ -2,11 +2,11 @@
 SharePoint Graph API connector for SCA Time Tracker.
 """
 
+import subprocess
 import requests
 from datetime import date
 from typing import Optional
-from azure.identity import AzureCliCredential
-from src.config import get_settings
+from src.config import get_env, get_settings
 
 
 def get_graph_url() -> str:
@@ -35,16 +35,44 @@ CATEGORY_MAP = {
 
 
 def get_access_token() -> str:
-    """Get Graph API token via az login session. Auto-refreshes."""
+    """Get Graph API access token.
+
+    Fallback chain:
+    1. GRAPH_ACCESS_TOKEN env var (manual override)
+    2. `az account get-access-token` CLI (auto-refreshes from az login session)
+    3. Raise SystemExit prompting the user to run `az login`
+    """
+    # 1. Manual env var override
+    token = get_env("GRAPH_ACCESS_TOKEN")
+    if token:
+        return token
+
+    # 2. az CLI session
     try:
-        credential = AzureCliCredential()
-        token = credential.get_token("https://graph.microsoft.com/.default")
-        return token.token
-    except Exception as e:
-        raise ValueError(
-            f"Cannot get Graph token: {e}\n"
-            f"Run 'az login' first, then retry."
-        ) from e
+        result = subprocess.run(
+            [
+                "az", "account", "get-access-token",
+                "--resource", "https://graph.microsoft.com",
+                "--query", "accessToken",
+                "-o", "tsv",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            token = result.stdout.strip()
+            if token:
+                return token
+    except FileNotFoundError:
+        pass  # az CLI not installed
+    except Exception:
+        pass
+
+    raise SystemExit(
+        "Cannot obtain a Graph API token.\n"
+        "Run 'az login' to authenticate, then retry."
+    )
 
 
 def _parse_sharepoint_date(value: str) -> date:

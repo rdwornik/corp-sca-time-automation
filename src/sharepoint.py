@@ -59,6 +59,7 @@ def get_access_token() -> str:
             capture_output=True,
             text=True,
             timeout=30,
+            shell=True,
         )
         if result.returncode == 0:
             token = result.stdout.strip()

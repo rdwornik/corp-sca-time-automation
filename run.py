@@ -104,7 +104,7 @@ def cmd_preview(use_ai: bool = True, weeks_back: int | None = None):
         except FileNotFoundError:
             pass
 
-    print("Next: python run.py upload --all   or   python run.py upload --latest")
+    print("Next: python run.py upload --all")
     print()
 
 
@@ -302,6 +302,22 @@ def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | Non
 
     # Step 4: run full pipeline with enough weeks to cover range
     weeks_back = weeks_back_to_cover(first_missing)
+
+    # Auto-refresh calendar data before generating preview
+    print("Refreshing calendar data...")
+    vbs_path = Path(__file__).parent / "scripts" / "calendar_export.vbs"
+    try:
+        result = subprocess.run(
+            ["cscript", "//Nologo", str(vbs_path), str(weeks_back)],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        if result.returncode != 0:
+            print(f"Warning: VBS export returned code {result.returncode}. Continuing with existing calendar_export.json.")
+    except Exception as e:
+        print(f"Warning: Could not run VBS export ({e}). Continuing with existing calendar_export.json.")
+
     ai_mode = "AI-enabled" if use_ai else "YAML-only"
     print(f"Running pipeline ({ai_mode}, {weeks_back} weeks back to cover range)...")
     print()
@@ -345,7 +361,7 @@ def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | Non
     print(f"Generated {len(missing)} week(s): {first_missing} -> {last_missing}")
     print(f"{entry_count} entries written to: {output_path}")
     print()
-    print("Next: python run.py upload --all   or   python run.py upload --latest")
+    print("Next: python run.py upload --all")
     print()
 
 

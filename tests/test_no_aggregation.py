@@ -71,7 +71,7 @@ result_with_summary = add_week_summaries(result)
 data_rows = result_with_summary[result_with_summary["category"] != ">>> WEEK TOTAL"]
 summary_rows = result_with_summary[result_with_summary["category"] == ">>> WEEK TOTAL"]
 
-print(f"After add_week_summaries():")
+print("After add_week_summaries():")
 print(f"  - Data rows: {len(data_rows)}")
 print(f"  - WEEK TOTAL rows: {len(summary_rows)}")
 print()

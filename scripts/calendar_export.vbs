@@ -14,7 +14,14 @@ Else
     WEEKS_BACK = 4
 End If
 
-Const OUTPUT_PATH = "C:\Users\1028120\Documents\Scripts\corp-sca-time-automation\data\input\calendar_export.json"
+Dim OUTPUT_PATH
+Dim wshEnv
+Set wshEnv = CreateObject("WScript.Shell").Environment("USER")
+Dim scriptsRoot
+scriptsRoot = wshEnv("SCRIPTS_ROOT")
+If scriptsRoot = "" Then scriptsRoot = wshEnv("USERPROFILE") & "\Documents\Scripts"
+OUTPUT_PATH = scriptsRoot & "\corp-sca-time-automation\data\input\calendar_export.json"
+Set wshEnv = Nothing
 Const INTERNAL_DOMAINS = "blueyonder.com,jda.com,microsoft.com"
 
 ' --- Variables ---

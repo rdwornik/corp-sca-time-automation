@@ -41,7 +41,7 @@ print("=== Testing Column Order ===\n")
 df = pd.DataFrame(test_data)
 result = aggregate_entries(df)
 
-print(f"After aggregate_entries():")
+print("After aggregate_entries():")
 print(f"Actual columns: {list(result.columns)}")
 print(f"Expected order: {expected_order}")
 print()
@@ -56,7 +56,7 @@ print()
 # Test with week summaries
 result_with_summary = add_week_summaries(result)
 
-print(f"After add_week_summaries():")
+print("After add_week_summaries():")
 print(f"Actual columns: {list(result_with_summary.columns)}")
 print(f"Expected order: {expected_order}")
 print()

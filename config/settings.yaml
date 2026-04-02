@@ -1,7 +1,7 @@
 ﻿# Paths
 paths:
   calendar_input: "data/input/calendar_export.json"
-  project_codes: "C:/Users/1028120/Documents/MyWork/90_System/Project_Codes.xlsm"
+  project_codes: "C:/Users/1028120/Documents/MyWork/90_System/Project_Codes.xlsm"  # override: PROJECT_CODES_EXCEL env var
   excel_preview: "data/output/time_entries_preview.xlsx"
 
 # Processing parameters

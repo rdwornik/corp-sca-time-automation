@@ -44,6 +44,11 @@ def get_settings() -> dict:
             if isinstance(value, str):
                 settings["paths"][key] = os.path.expandvars(value)
 
+    # Env var overrides for specific paths
+    project_codes_env = os.environ.get("PROJECT_CODES_EXCEL")
+    if project_codes_env:
+        settings.setdefault("paths", {})["project_codes"] = project_codes_env
+
     return settings
 
 

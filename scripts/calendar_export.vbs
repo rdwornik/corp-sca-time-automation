@@ -31,9 +31,10 @@ Dim startDate, endDate, filterStr
 Dim jsonStr, comma, category, externalDomains
 Dim recipEmail, recipDomain
 Dim cats, cat, internalArr
-Dim eventCount, i, isInternal
+Dim eventCount, i, isInternal, iterCount, totalEvents
 
 ' --- Connect to Outlook via COM ---
+WScript.Echo "Connecting to Outlook..."
 On Error Resume Next
 Set objOutlook = CreateObject("Outlook.Application")
 If Err.Number <> 0 Then
@@ -41,9 +42,11 @@ If Err.Number <> 0 Then
     WScript.Quit 1
 End If
 On Error GoTo 0
+WScript.Echo "Connected. Accessing calendar..."
 
 Set ns = objOutlook.GetNamespace("MAPI")
 Set calendarFolder = ns.GetDefaultFolder(9) ' olFolderCalendar = 9
+WScript.Echo "Calendar accessed. Reading events..."
 
 ' --- Setup dates ---
 endDate = DateAdd("d", 1, Date)
@@ -63,6 +66,8 @@ items.Sort "[Start]", False
 items.IncludeRecurrences = True
 filterStr = "[Start] >= '" & FormatDateTime(startDate, 2) & "' AND [Start] < '" & FormatDateTime(endDate, 2) & "'"
 Set filteredItems = items.Restrict(filterStr)
+totalEvents = filteredItems.Count
+iterCount = 0
 
 ' --- Build JSON string ---
 jsonStr = "{""events"": ["
@@ -71,6 +76,8 @@ eventCount = 0
 
 ' --- Process events ---
 For Each appt In filteredItems
+    iterCount = iterCount + 1
+    WScript.Echo "Processing event " & iterCount & " of " & totalEvents & "..."
 
     ' Extract category (with . prefix)
     category = ""

@@ -34,6 +34,37 @@ from src.sharepoint import get_access_token, get_uploaded_weeks, post_week_entri
 import pandas as pd
 
 
+def _run_vbs_export(vbs_path: Path, weeks: int) -> bool:
+    """Run VBS calendar export script with retry and fallback prompts.
+
+    Returns True if the export succeeded, False if the user chose to continue
+    with existing calendar_export.json.  Calls sys.exit(1) if the user declines
+    to continue.
+    """
+    def _attempt() -> bool:
+        try:
+            result = subprocess.run(
+                ["cscript", "//Nologo", str(vbs_path), str(weeks)],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            return result.returncode == 0
+        except Exception:
+            return False
+
+    if _attempt():
+        return True
+
+    print("VBS export failed — is Outlook running?")
+    if input("Retry? [y/N] ").strip().lower() == "y" and _attempt():
+        return True
+
+    if input("Continue with existing calendar_export.json? [y/N] ").strip().lower() != "y":
+        sys.exit(1)
+    return False
+
+
 def _check_excel_writable(path: Path) -> None:
     """Fail fast if Excel output file is locked by another process (e.g., Excel is open).
 
@@ -54,8 +85,6 @@ def _check_excel_writable(path: Path) -> None:
 def cmd_export(run: bool = False, weeks: int = 4):
     """Export calendar from Outlook. With --run, executes VBS script directly."""
     if run:
-        import subprocess
-
         vbs_path = Path(__file__).parent / "scripts" / "calendar_export.vbs"
         if not vbs_path.exists():
             print(f"Error: VBS script not found: {vbs_path}")
@@ -63,13 +92,7 @@ def cmd_export(run: bool = False, weeks: int = 4):
 
         print(f"Running calendar export ({weeks} weeks back)...")
         print()
-        result = subprocess.run(
-            ["cscript", "//Nologo", str(vbs_path), str(weeks)],
-            capture_output=False,
-        )
-        if result.returncode != 0:
-            print("\nExport failed. Is Outlook running?")
-            sys.exit(1)
+        _run_vbs_export(vbs_path, weeks)
         print()
         print("Next: python run.py preview")
     else:
@@ -336,17 +359,7 @@ def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | Non
     # Auto-refresh calendar data before generating preview
     print(f"Exporting calendar ({weeks_back} weeks)...")
     vbs_path = Path(__file__).parent / "scripts" / "calendar_export.vbs"
-    try:
-        result = subprocess.run(
-            ["cscript", "//Nologo", str(vbs_path), str(weeks_back)],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        if result.returncode != 0:
-            print(f"Warning: VBS export returned code {result.returncode}. Continuing with existing calendar_export.json.")
-    except Exception as e:
-        print(f"Warning: Could not run VBS export ({e}). Continuing with existing calendar_export.json.")
+    _run_vbs_export(vbs_path, weeks_back)
 
     ai_mode = "AI-enabled" if use_ai else "YAML-only"
     print(f"Running pipeline ({ai_mode}, {weeks_back} weeks back)...")

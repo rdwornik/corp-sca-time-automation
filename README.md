@@ -4,13 +4,14 @@ Automates weekly time entry submission to the SharePoint SCA Time Tracker from O
 
 ## Features
 
-- **VBA Calendar Export** — Outlook macro exports events with categories and external attendee domains
+- **Calendar Export** — Standalone VBS script exports Outlook events with categories and external attendee domains
 - **AI-Powered Client Detection** — Gemini AI matches meetings to clients from project codes (with keyword fallback)
 - **Smart Category Mapping** — Outlook categories (.PREFIX) map to SharePoint categories automatically
 - **Overlap Resolution** — Priority-based: customer-facing activities always win overlapping slots
-- **Intelligent Gap Filling** — Distributes missing hours proportionally based on your actual work patterns
+- **Intelligent Gap Filling** — Weighted blend of your actual work patterns + Gemini comment generation for autofilled slots
+- **Catchup Mode** — Auto-detects missing weeks and generates preview without manual date entry
 - **Excel Preview** — Color-coded review file (green=original, yellow=autofilled, red=totals) before upload
-- **SharePoint Upload** — Graph API integration to post entries directly to the Time Tracker list
+- **SharePoint Upload** — Graph API integration to post entries directly to the Time Tracker list; `--force` re-uploads existing weeks
 - **Manager Report** — Weekly hours pivot table and opportunity tracking summary
 
 ## Installation
@@ -32,9 +33,11 @@ pip install -r requirements.txt
    - `GRAPH_ACCESS_TOKEN` — from [Graph Explorer](https://developer.microsoft.com/en-us/graph/graph-explorer) (expires hourly)
    - `GEMINI_API_KEY` — from [AI Studio](https://aistudio.google.com/apikey) (optional)
 
-2. Install the VBA macro from `scripts/calendar_export.vbs` in Outlook (Alt+F11 > Insert Module)
+2. Export calendar events by running `cscript scripts/calendar_export.vbs` from a terminal (no Outlook macro setup needed)
 
-3. Symlink project codes: `mklink data\input\project_codes.xlsx "path\to\Project_Codes.xlsx"`
+3. **Access token** — `GRAPH_ACCESS_TOKEN` is optional if `az login` is active; the tool falls back to `az account get-access-token` automatically. Set it in `.env` only when Azure CLI is unavailable.
+
+4. Symlink project codes: `mklink data\input\project_codes.xlsx "path\to\Project_Codes.xlsx"`
 
 ## Usage
 
@@ -53,9 +56,15 @@ python run.py preview --weeks 12  # Limit to last 12 weeks
 python run.py status
 
 # 5. Upload to SharePoint
-python run.py upload --all        # All weeks
-python run.py upload --latest     # Most recent week
-python run.py upload 2025-12-07   # Specific week
+python run.py upload --all           # All weeks
+python run.py upload --latest        # Most recent week
+python run.py upload 2025-12-07      # Specific week
+python run.py upload --all --force   # Re-upload even if weeks already exist
+
+# Or: auto-detect and preview missing weeks in one step
+python run.py catchup                # Preview only missing weeks
+python run.py catchup --dry-run      # Show which weeks are missing, no Excel generated
+python run.py catchup --max-weeks 8  # Limit lookback
 
 # 6. Manager report (optional)
 python run.py report
@@ -65,7 +74,7 @@ python run.py report --weeks 8
 ## Architecture
 
 ```
-Outlook VBA Export -> calendar_export.json
+VBS Script (cscript scripts/calendar_export.vbs) -> calendar_export.json
   -> loader.py      (load + filter events)
   -> mapper.py      (category mapping + client detection)
   -> overlap.py     (priority-based overlap resolution)
@@ -85,7 +94,7 @@ python -m pytest
 python -m ruff check src/
 ```
 
-2 automated tests covering opportunity ID clearing and gap filler rounding.
+60 automated tests across date utils, gap filler, SharePoint queries, catchup logic, upload idempotency, and Excel writer.
 
 ## Development
 

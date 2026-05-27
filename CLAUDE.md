@@ -1,171 +1,107 @@
 # CLAUDE.md — SCA Time Automation
+> **Session contract for Claude Code in this repo.** Read on every session start (auto). Single canonical agent-instruction file per ADR-53.
+>
+> **For universal rules:** read `../.dev-knowledge/protocols/ESSENTIALS.md` and `../.dev-knowledge/protocols/PLAYBOOK.md`.
 
-## What this repo does
+## 1. First read (session start)
 
-Automates weekly time entry submission to SharePoint SCA Time Tracker from Outlook calendar exports. Exports calendar events via VBA, maps them to SharePoint categories, detects clients (AI or keyword), fills gaps to 40h, and uploads via Graph API.
+In order, read:
+1. This file (you're here)
+2. `VISION.md` — purpose, scope, relationships
+3. `ARCHITECTURE.md` — pipeline, module map, invariants
+4. `../.dev-knowledge/protocols/ESSENTIALS.md` — Rob's universal working style
+5. Recent commits (`git log --oneline -5`) for current context
 
-## Quick start
+## 2. Repo identity
+
+- **Name:** `corp-sca-time-automation`
+- **Status:** `active`
+- **Purpose:** Automates weekly time-entry submission to the SharePoint SCA Time Tracker from Outlook calendar exports (map → detect client → resolve overlap → fill to 40h → Excel preview → upload).
+- **Owner:** Rob
+- **Critical paths:** `run.py`, `src/`, `config/`, `tests/`
+- **Relationships:** fully standalone at runtime. Reads `Project_Codes.xlsm` from `90_System/` (shared input with `corp-opportunity-manager`). Uploads to SharePoint via Graph API.
+- **License:** internal use only — Blue Yonder Pre-Sales Engineering.
+
+## 3. Architecture
+
+See `ARCHITECTURE.md` for the pipeline, module map, layer/invariants, and data flow (required per ADR-51 — mandatory for every repo). The pipeline is a flat-module sequence: `loader → mapper → overlap → aggregator → gap_filler → excel_writer → (human review) → sharepoint`.
+
+## 4. Conventions
+
+- **Naming:** snake_case Python; `ADR-NN-topic.md` if local ADRs are ever added (hyphen per ADR-34).
+- **Commits:** Conventional Commits — `type(scope): summary`.
+- **Branches:** `feat/<topic>`, `fix/<topic>`, `chore/<scope>` off `main`.
+- **Dev standards:** Python 3.12+, functional style (no classes unless necessary); TypedDict for type hints; explicit imports (`from src.module import function`); YAML/`.env` for all config, no hardcoded values; graceful degradation (AI → keyword fallback); all comments/docs in English.
+- **Linting/testing:** `python -m ruff check src/`; `python -m pytest`.
+
+## 5. Setup
 
 ```bash
-# Install
 python -m venv .venv && .venv\Scripts\activate
 pip install -r requirements.txt
-
-# Configure
-cp .env.example .env  # then fill in ONEDRIVE_PATH, GRAPH_ACCESS_TOKEN, GEMINI_API_KEY
-
-# Run
-python run.py preview          # Generate Excel preview
-python run.py preview --no-ai  # Without AI (faster)
-python run.py status           # Show weeks and totals
-python run.py upload --all     # Upload all weeks to SharePoint
-python run.py upload --latest  # Upload most recent week
-python run.py upload 2025-12-07  # Upload specific week
-python run.py report           # Generate manager report
-python run.py export           # Show VBA export instructions
-python run.py catchup          # Auto-detect missing weeks, generate preview
 ```
 
-## Architecture
+Create a `.env` at the repo root with (no `.env.example` template is kept — root hygiene, ADR-49/PLAYBOOK):
+- `ONEDRIVE_PATH` — local OneDrive root path
+- `GRAPH_ACCESS_TOKEN` — Graph API bearer token (per-session; refresh each session)
+- `GEMINI_API_KEY` — Gemini AI key (optional; enables AI client detection)
+- Azure IDs — tenant / client IDs per `config/settings.yaml`
 
-### Data flow
+API keys are otherwise loaded globally from `Documents/.secrets/.env` via the PowerShell profile — do **not** add keys to a repo-local `.env` beyond the per-session `GRAPH_ACCESS_TOKEN`. This repo uses `GEMINI_API_KEY`.
 
-```
-VBA Export (Outlook) -> calendar_export.json
-  -> loader.py (load + filter by category/weeks)
-  -> mapper.py (category mapping + client detection)
-  -> overlap.py (priority-based hour slot resolution)
-  -> aggregator.py (sort + add week totals)
-  -> gap_filler.py (autofill empty slots to 40h)
-  -> excel_writer.py (formatted Excel with colors)
-  -> User reviews Excel
-  -> sharepoint.py (upload via Graph API)
-```
-
-### Key modules
-
-| Module | Purpose |
-|--------|---------|
-| `run.py` | CLI entry point (argparse) |
-| `src/config.py` | Load YAML configs + `.env` with `${VAR}` expansion |
-| `src/loader.py` | Load calendar JSON, filter excluded categories, filter by weeks |
-| `src/mapper.py` | Outlook->SharePoint category mapping, client detection (AI/keyword) |
-| `src/overlap.py` | Resolve overlapping events (highest priority wins per hour slot) |
-| `src/aggregator.py` | Sort entries + add ">>> WEEK TOTAL" summary rows (no aggregation) |
-| `src/gap_filler.py` | Find empty 9-17 slots, generate proportional autofill entries |
-| `src/excel_preview.py` | Orchestrates full pipeline: load -> map -> overlap -> aggregate -> fill -> write |
-| `src/excel_writer.py` | Write formatted Excel (green=original, yellow=autofilled, red=totals) |
-| `src/date_utils.py` | Sunday-based week math: last_sunday, sundays_between, weeks_back_to_cover |
-| `src/sharepoint.py` | Graph API client, query uploaded weeks, post entries to SharePoint list |
-| `src/gemini_client.py` | Gemini AI for client detection + comment generation |
-| `src/project_codes.py` | Load project codes from Excel, match client->opportunity_id |
-| `src/text_utils.py` | Text normalization (accents, case, whitespace) |
-| `src/models.py` | TypedDict definitions |
-| `scripts/manager_report.py` | Generate manager summary report |
-
-### Config files
-
-- `config/settings.yaml` — paths, processing params, SharePoint IDs, AI config
-- `config/category_mapping.yaml` — Outlook category prefix -> SharePoint category name
-- `config/excluded.yaml` — categories to skip entirely
-- `.env` — `ONEDRIVE_PATH`, `GRAPH_ACCESS_TOKEN` (per-session), Azure IDs
-
-## API Keys
-
-Keys loaded globally from `Documents/.secrets/.env` via PowerShell profile.
-Do NOT add API keys to local `.env`.
-Check: `keys list` | Update: `keys set KEY value` | Reload: `keys reload`
-
-This repo uses: `GEMINI_API_KEY`
-
-## Dev standards
-
-- Python 3.12+, functional style (no classes unless necessary)
-- TypedDict for type hints
-- Explicit imports: `from src.module import function`
-- YAML/`.env` for all configuration, no hardcoded values
-- `ruff` for linting and formatting
-- `pytest` for tests
-- All comments and docs in English
-- Graceful degradation (AI -> keyword fallback)
-
-## Key commands
+## 6. Key commands
 
 ```bash
-python run.py export                  # Show VBA export instructions
-python run.py preview                 # Generate preview (AI mode)
-python run.py preview --no-ai        # Generate preview (keyword only)
+python run.py export                 # Show VBA export instructions
+python run.py preview                # Generate Excel preview (AI mode)
+python run.py preview --no-ai        # Without AI (faster)
 python run.py preview --weeks 12     # Limit to last 12 weeks
-python run.py status                  # Show weeks in preview
+python run.py status                 # Show weeks and totals
 python run.py upload --all           # Upload all weeks
 python run.py upload --latest        # Upload most recent week
 python run.py upload 2025-12-07      # Upload specific week
-python run.py upload --all --force   # Re-upload even if weeks already exist
-python run.py report                  # Manager report
-python run.py report --weeks 8       # Manager report, last 8 weeks
-python run.py catchup                 # Auto-detect + preview missing weeks
-python run.py catchup --dry-run      # Show missing weeks without generating Excel
-python run.py catchup --max-weeks 8  # Limit lookback when no uploads found
+python run.py upload --all --force   # Re-upload even if weeks exist
+python run.py report [--weeks N]     # Manager report
+python run.py catchup [--dry-run]    # Auto-detect + preview missing weeks
 ```
 
-## Test suite
+## 7. Slash commands available
 
-```bash
-python -m pytest                     # Run all tests
-python -m pytest tests/test_no_opportunity_categories.py  # Specific file
-python -m ruff check src/            # Lint check
-```
+User-level (`~/.claude/commands/`): `/boot`, `/save`, `/session-summary`. No repo-level commands directory.
 
-Current: 56 pytest tests across `test_no_opportunity_categories.py`, `test_date_utils.py`, `test_sharepoint_queries.py`, `test_catchup.py`, `test_upload_idempotency.py`, `test_excel_writer.py`, `test_gap_filler_v2.py`. Other test files (`test_overlap_fix.py`, `test_client.py`, `test_column_order.py`, `test_no_aggregation.py`, `test_gemini_client_detection.py`, `test_upload.py`) are standalone verification scripts (run with `python tests/test_*.py`), not pytest tests.
+## 8. Skills active
 
-## Dependencies
+- User-level (`~/.claude/skills/`): `gotchas` (consult before modifying code), `verify` (after pytest passes).
+- Repo-level (`.claude/rules/`): `code-standards.md`, `python-env.md`, `testing.md` — read before code changes.
 
-- `pandas` — DataFrame operations, Excel I/O
-- `openpyxl` — Excel formatting and tables
-- `pyyaml` — YAML config parsing
-- `python-dotenv` — `.env` file loading
-- `google-genai` — Gemini AI client (optional)
-- `requests` — SharePoint Graph API calls
+## 9. Hooks active
 
-## Integration points
+No `.pre-commit-config.yaml`. Lint/test run manually (`python -m ruff check src/`, `python -m pytest`) per §4.
 
-corp-sca-time-automation is fully standalone.
+## 10. Anti-patterns specific to Claude Code in this repo
 
-- **Shared state**: reads Project_Codes.xlsm from 90_System/ (shared with corp-opportunity-manager)
-- Uploads time entries to SharePoint via Graph API
-- No Obsidian vault interaction
+- **`aggregator.py` naming:** `aggregate_entries()` sorts + adds total rows; it does NOT aggregate. Do not assume summation (tracked in BACKLOG).
+- **Duplicated constants:** `NO_OPPORTUNITY_ID_CATEGORIES` and `CATEGORY_MAP` are duplicated across modules — change all copies or consolidate (see BACKLOG).
+- **Standalone "tests":** several `tests/test_*.py` are scripts run via `python tests/test_*.py`, not pytest — do not assume `pytest` covers them.
+- **GRAPH_ACCESS_TOKEN:** is per-session (~short-lived) — refresh before upload runs.
+- **Upload idempotency:** re-running upload does not duplicate a week unless `--force`; do not add `--force` to bypass an apparent "missing" week without checking.
 
-## Related repos
+## 11. Recent ADRs binding here
 
-- [ECOSYSTEM.md](../ECOSYSTEM.md) — full ecosystem overview
-- [corp-opportunity-manager](../corp-opportunity-manager/) — also reads Project_Codes.xlsm
-- [corp-ops](../corp-ops/) — SharePoint/Graph API tooling
+Governance ADRs live in `../.dev-knowledge/docs/decisions/`:
+- ADR-33: VISION.md universalization (frontmatter schema; tier/scale removed 2026-05-23)
+- ADR-34: file naming conventions (hyphen ADR names)
+- ADR-38: universal repo baseline (VISION + ARCHITECTURE + BACKLOG mandatory; README optional, A5)
+- ADR-49: record consolidation (CHANGELOG retired; git history as record)
+- ADR-51: ARCHITECTURE.md convention (universal; text-only codemap override for flat repos)
+- ADR-53: CLAUDE.md as single canonical agent-instruction file
 
-## Known issues
+## 12. Section history
 
-- `models.py` defines TypedDicts that are not imported elsewhere (duplicate CalendarEvent in loader.py)
-- `aggregator.py` function `aggregate_entries()` is misleadingly named — it sorts, not aggregates
-- `NO_OPPORTUNITY_ID_CATEGORIES` is duplicated in `excel_preview.py` and `gap_filler.py`
-- `CATEGORY_MAP` for SharePoint is duplicated in `sharepoint.py` vs mapper/overlap modules
-- Most test files are standalone scripts, not proper pytest tests — low automated test coverage
-- Modules with zero pytest coverage: config, loader, mapper, overlap, aggregator, gap_filler, excel_preview, excel_writer, sharepoint, gemini_client, project_codes, text_utils
-- `split_multiday_events()` in excel_preview.py is defined but only used internally — verify it's needed
-- `detect_client_from_comment()` in gemini_client.py is deprecated dead code
+- v1.0 (pre-ADR-53) — free-form reference (what-this-repo-does, quick-start, inline architecture + data flow + Known-issues + module table).
+- v2.0 (2026-05-27) — re-homed into the ADR-53 12-section template; architecture + data flow moved to `ARCHITECTURE.md`; "Known issues" moved to `BACKLOG.md`; purpose/scope moved to `VISION.md`; `.env.example` retired (env vars documented in §5); dangling `../ECOSYSTEM.md` link removed.
 
-## Priority order (overlap resolution)
+---
 
-1. Customer - Demo/Presentation (100)
-2. Discovery (90)
-3. RFI/RFP/RFQ (85)
-4. POC (80)
-5. Prep - Demo/Presentation (70)
-6. Internal Meeting (50)
-7. Training (40)
-8. Support (30)
-9. Admin (20)
-10. Travel (10)
-11. Time Off (5)
-
-## License
-
-Internal use only — Blue Yonder Pre-Sales Engineering.
+**Last updated:** 2026-05-27
+**Maintained by:** Rob

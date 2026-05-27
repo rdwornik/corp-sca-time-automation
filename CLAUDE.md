@@ -42,10 +42,14 @@ pip install -r requirements.txt
 ```
 
 Create a `.env` at the repo root with (no `.env.example` template is kept — root hygiene, ADR-49/PLAYBOOK):
-- `ONEDRIVE_PATH` — local OneDrive root path
-- `GRAPH_ACCESS_TOKEN` — Graph API bearer token (per-session; refresh each session)
+- `ONEDRIVE_PATH` — path to your OneDrive (for `project_codes.xlsx`)
+- `GRAPH_ACCESS_TOKEN` — Graph API bearer token from [Graph Explorer](https://developer.microsoft.com/en-us/graph/graph-explorer) (expires hourly). **Optional if `az login` is active** — the tool falls back to `az account get-access-token` automatically; set it in `.env` only when Azure CLI is unavailable.
 - `GEMINI_API_KEY` — Gemini AI key (optional; enables AI client detection)
 - Azure IDs — tenant / client IDs per `config/settings.yaml`
+
+Then:
+1. Export calendar events: `cscript scripts/calendar_export.vbs` (no Outlook macro setup needed) — `python run.py export` prints these instructions.
+2. Symlink project codes: `mklink data\input\project_codes.xlsx "path\to\Project_Codes.xlsx"`.
 
 API keys are otherwise loaded globally from `Documents/.secrets/.env` via the PowerShell profile — do **not** add keys to a repo-local `.env` beyond the per-session `GRAPH_ACCESS_TOKEN`. This repo uses `GEMINI_API_KEY`.
 

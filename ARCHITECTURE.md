@@ -27,7 +27,7 @@ for human review, and uploads the approved week via the Graph API.
 > generator dependency). The semantic detail is in the Module Map below.
 
 The pipeline is a linear sequence of single-purpose modules under `src/`, driven
-by the `run.py` CLI. Configuration modules (`config.py`, `project_codes.py`) and
+by the `scripts/run.py` CLI. Configuration modules (`config.py`, `project_codes.py`) and
 utility modules (`date_utils.py`, `text_utils.py`, `models.py`) support the
 pipeline stages. AI client detection (`gemini_client.py`) is optional and
 degrades to keyword matching. `sharepoint.py` is the only outbound network
@@ -95,7 +95,7 @@ Supporting modules (`config`, `date_utils`, `text_utils`, `models`,
 
 | Module | Responsibility |
 |--------|----------------|
-| `run.py` | CLI entry point (argparse): preview / status / upload / report / export / catchup |
+| `scripts/run.py` | CLI entry point (argparse): preview / status / upload / report / export / catchup |
 | `src/config.py` | Load YAML configs + `.env` with `${VAR}` expansion |
 | `src/loader.py` | Load calendar JSON; filter excluded categories; filter by weeks |
 | `src/mapper.py` | Outlook→SharePoint category mapping; client detection (AI/keyword) |

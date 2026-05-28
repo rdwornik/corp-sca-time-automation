@@ -27,6 +27,8 @@ import time
 from datetime import date
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from src.config import get_settings
 from src.excel_preview import generate_final_preview
 from src.sharepoint import get_access_token, get_uploaded_weeks, post_week_entries, post_all_weeks
@@ -85,7 +87,7 @@ def _check_excel_writable(path: Path) -> None:
 def cmd_export(run: bool = False, weeks: int = 4):
     """Export calendar from Outlook. With --run, executes VBS script directly."""
     if run:
-        vbs_path = Path(__file__).parent / "scripts" / "calendar_export.vbs"
+        vbs_path = Path(__file__).parent / "calendar_export.vbs"
         if not vbs_path.exists():
             print(f"Error: VBS script not found: {vbs_path}")
             sys.exit(1)
@@ -94,19 +96,19 @@ def cmd_export(run: bool = False, weeks: int = 4):
         print()
         _run_vbs_export(vbs_path, weeks)
         print()
-        print("Next: python run.py preview")
+        print("Next: python scripts/run.py preview")
     else:
         print("=" * 60)
         print("STEP 1: Export Calendar from Outlook")
         print("=" * 60)
         print()
         print("Option A (recommended):")
-        print(f"  python run.py export --run --weeks {weeks}")
+        print(f"  python scripts/run.py export --run --weeks {weeks}")
         print()
         print("Option B (manual):")
         print(f"  cscript //Nologo scripts/calendar_export.vbs {weeks}")
         print()
-        print("Then run: python run.py preview")
+        print("Then run: python scripts/run.py preview")
         print()
 
 
@@ -152,7 +154,7 @@ def cmd_preview(use_ai: bool = True, weeks_back: int | None = None):
 
     print(f"Done in {int(time.time() - t0)}s")
     print()
-    print("Next: python run.py upload --all")
+    print("Next: python scripts/run.py upload --all")
     print()
 
 
@@ -171,7 +173,7 @@ def cmd_upload(week: str = None, latest: bool = False, all_weeks: bool = False, 
 
     if not Path(preview_path).exists():
         print(f"Error: Preview file not found: {preview_path}")
-        print("Run 'python run.py preview' first")
+        print("Run 'python scripts/run.py preview' first")
         sys.exit(1)
 
     # Load preview Excel
@@ -251,7 +253,7 @@ def cmd_status():
 
     if not Path(preview_path).exists():
         print(f"Preview file not found: {preview_path}")
-        print("Run 'python run.py preview' first")
+        print("Run 'python scripts/run.py preview' first")
         return
 
     # Load preview Excel
@@ -383,7 +385,7 @@ def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | Non
     if filtered_df.empty:
         print(
             "No calendar events found for the missing weeks. "
-            "Run 'python run.py export --run' to refresh calendar data."
+            "Run 'python scripts/run.py export --run' to refresh calendar data."
         )
         return
 
@@ -413,7 +415,7 @@ def cmd_catchup(use_ai: bool = True, dry_run: bool = False, max_weeks: int | Non
     print(f"{entry_count} entries written to: {output_path}")
     print(f"Done in {int(time.time() - t0)}s")
     print()
-    print("Next: python run.py upload --all")
+    print("Next: python scripts/run.py upload --all")
     print()
 
 

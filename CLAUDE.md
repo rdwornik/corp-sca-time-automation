@@ -18,7 +18,7 @@ In order, read:
 - **Status:** `active`
 - **Purpose:** Automates weekly time-entry submission to the SharePoint SCA Time Tracker from Outlook calendar exports (map → detect client → resolve overlap → fill to 40h → Excel preview → upload).
 - **Owner:** Rob
-- **Critical paths:** `run.py`, `src/`, `config/`, `tests/`
+- **Critical paths:** `scripts/run.py`, `src/`, `config/`, `tests/`
 - **Relationships:** fully standalone at runtime. Reads `Project_Codes.xlsm` from `90_System/` (shared input with `corp-opportunity-manager`). Uploads to SharePoint via Graph API.
 - **License:** internal use only — Blue Yonder Pre-Sales Engineering.
 
@@ -48,7 +48,7 @@ Create a `.env` at the repo root with (no `.env.example` template is kept — ro
 - Azure IDs — tenant / client IDs per `config/settings.yaml`
 
 Then:
-1. Export calendar events: `cscript scripts/calendar_export.vbs` (no Outlook macro setup needed) — `python run.py export` prints these instructions.
+1. Export calendar events: `cscript scripts/calendar_export.vbs` (no Outlook macro setup needed) — `python scripts/run.py export` prints these instructions.
 2. Symlink project codes: `mklink data\input\project_codes.xlsx "path\to\Project_Codes.xlsx"`.
 
 API keys are otherwise loaded globally from `Documents/.secrets/.env` via the PowerShell profile — do **not** add keys to a repo-local `.env` beyond the per-session `GRAPH_ACCESS_TOKEN`. This repo uses `GEMINI_API_KEY`.
@@ -56,17 +56,17 @@ API keys are otherwise loaded globally from `Documents/.secrets/.env` via the Po
 ## 6. Key commands
 
 ```bash
-python run.py export                 # Show VBA export instructions
-python run.py preview                # Generate Excel preview (AI mode)
-python run.py preview --no-ai        # Without AI (faster)
-python run.py preview --weeks 12     # Limit to last 12 weeks
-python run.py status                 # Show weeks and totals
-python run.py upload --all           # Upload all weeks
-python run.py upload --latest        # Upload most recent week
-python run.py upload 2025-12-07      # Upload specific week
-python run.py upload --all --force   # Re-upload even if weeks exist
-python run.py report [--weeks N]     # Manager report
-python run.py catchup [--dry-run]    # Auto-detect + preview missing weeks
+python scripts/run.py export                 # Show VBA export instructions
+python scripts/run.py preview                # Generate Excel preview (AI mode)
+python scripts/run.py preview --no-ai        # Without AI (faster)
+python scripts/run.py preview --weeks 12     # Limit to last 12 weeks
+python scripts/run.py status                 # Show weeks and totals
+python scripts/run.py upload --all           # Upload all weeks
+python scripts/run.py upload --latest        # Upload most recent week
+python scripts/run.py upload 2025-12-07      # Upload specific week
+python scripts/run.py upload --all --force   # Re-upload even if weeks exist
+python scripts/run.py report [--weeks N]     # Manager report
+python scripts/run.py catchup [--dry-run]    # Auto-detect + preview missing weeks
 ```
 
 ## 7. Slash commands available

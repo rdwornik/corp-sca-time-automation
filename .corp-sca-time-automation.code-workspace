@@ -1,0 +1,38 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		// ── Explorer (ADR-59 universal visual pattern + 2026-05-27 amendment) ──
+		// "upper" clusters ALL-CAPS canonical .md ahead of lowercase configs.
+		// "sortOrderReverse: true" gives newest-first inside dated folders.
+		// Template copied verbatim from corrected .dev-knowledge.code-workspace.
+		"explorer.sortOrder": "default",
+		"explorer.sortOrderLexicographicOptions": "upper",
+		"explorer.sortOrderReverse": true,
+		"explorer.compactFolders": false,
+
+		// ── Python ─────────────────────────────────────────
+		"python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+		"python.testing.pytestEnabled": true,
+		"python.testing.pytestArgs": ["tests"],
+		"python.testing.unittestEnabled": false,
+
+		// ── Files ──────────────────────────────────────────
+		"files.exclude": {
+			"**/__pycache__": true,
+			"**/*.pyc": true,
+			"*.egg-info": true
+		},
+		"files.trimTrailingWhitespace": true,
+		"files.insertFinalNewline": true
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-python.python",
+			"charliermarsh.ruff"
+		]
+	}
+}

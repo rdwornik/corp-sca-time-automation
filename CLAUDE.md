@@ -99,6 +99,7 @@ Governance ADRs live in `../.dev-knowledge/docs/decisions/`:
 - ADR-49: record consolidation (CHANGELOG retired; git history as record)
 - ADR-51: ARCHITECTURE.md convention (universal; text-only codemap override for flat repos)
 - ADR-53: CLAUDE.md as single canonical agent-instruction file
+- ADR-60: docs/ folder taxonomy (decisions/ + audits/ + archive/ baseline) + entry-scripts in `scripts/` (run.py relocated 2026-05-28)
 
 ## 12. Section history
 
@@ -107,5 +108,5 @@ Governance ADRs live in `../.dev-knowledge/docs/decisions/`:
 
 ---
 
-**Last updated:** 2026-05-27
+**Last updated:** 2026-06-02
 **Maintained by:** Rob

@@ -1,5 +1,5 @@
 ---
-last_reviewed: 2026-05-27
+last_reviewed: 2026-06-02
 status: active
 owner: Rob
 ---
@@ -7,7 +7,7 @@ owner: Rob
 # Architecture — `corp-sca-time-automation`
 
 > Living document. Updated after structural changes.
-> Last updated: `2026-05-27` (`initial ADR-51 conformance authoring; content moved from CLAUDE.md`)
+> Last updated: `2026-06-02` (`coherence re-review (universalization G1): priority-table strings aligned to config/code; module map + invariants verified against code`)
 
 ## Purpose [CORE]
 

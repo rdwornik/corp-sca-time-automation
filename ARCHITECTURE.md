@@ -73,11 +73,11 @@ Supporting modules (`config`, `date_utils`, `text_utils`, `models`,
 
 | Priority | Category |
 |----------|----------|
-| 100 | Customer - Demo/Presentation |
+| 100 | Customer - Demo/ Presentation |
 | 90 | Discovery |
 | 85 | RFI/RFP/RFQ |
 | 80 | POC |
-| 70 | Prep - Demo/Presentation |
+| 70 | Prep - Demo/ Presentation |
 | 50 | Internal Meeting |
 | 40 | Training |
 | 30 | Support |

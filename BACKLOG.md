@@ -10,10 +10,11 @@ cadence. Items below were migrated from the CLAUDE.md "Known issues" list on
 
 ---
 
-### [P2] [open] Thin automated test coverage
-- **What:** Most `tests/test_*.py` files are standalone verification scripts (run via `python tests/test_*.py`), not pytest tests. Modules with zero pytest coverage: `config`, `loader`, `mapper`, `overlap`, `aggregator`, `gap_filler`, `excel_preview`, `excel_writer`, `sharepoint`, `gemini_client`, `project_codes`, `text_utils`.
-- **Why:** Low automated coverage on the core pipeline; regressions can slip through. Converting standalone scripts to pytest tests would raise the safety net.
+### [P2] [open] Thin automated test coverage on 4 pipeline modules
+- **What:** Four `src/` modules have no pytest coverage — no test file imports them: `config`, `loader`, `project_codes`, `text_utils`. The rest of the pipeline IS covered: `sharepoint`, `gap_filler`, `mapper`, `date_utils`, `aggregator`, `overlap`, `gemini_client`, `excel_writer`, `excel_preview` are imported and exercised by `tests/test_*.py` (69 passed / 1 skipped via `python -m pytest`). A few test files (`test_client.py`, `test_column_order.py`, `test_no_aggregation.py`, `test_gemini_client_detection.py`) are standalone scripts with no `test_` functions — pytest collects nothing from them, but they are the exception, not the rule.
+- **Why:** The 4 uncovered modules (config loading, calendar load/filter, project-code matching, text normalization) can regress silently. Adding pytest tests for them raises the safety net.
 - **Added:** 2026-05-27 (migrated from CLAUDE.md Known issues)
+- **Re-scoped:** 2026-06-02 — corrected the stale claim "most files are standalone / 12 modules at zero coverage" (verified by import-grep + pytest: 8 of 12 are actually covered); narrowed to the 4 genuinely-uncovered modules. Priority unchanged.
 - **Status:** open
 
 ### [P3] [open] `aggregator.py` `aggregate_entries()` is misnamed

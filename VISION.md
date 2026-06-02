@@ -1,7 +1,7 @@
 ---
 version: "1.0"
 owner: Rob
-last_reviewed: "2026-05-27"
+last_reviewed: "2026-06-02"
 status: active
 ---
 
@@ -32,6 +32,13 @@ manual, error-prone weekly chore into a review-and-approve workflow.
 - Business logic or data belonging to other repos.
 - Obsidian vault interaction.
 - Migrating off `requirements.txt` to `pyproject.toml` (intentional — see ARCHITECTURE).
+
+## Values
+
+- **Human-in-the-loop** — the colour-coded Excel preview is a mandatory approval gate; the tool never uploads an unreviewed week.
+- **Graceful degradation** — client detection falls back from Gemini AI to keyword matching; the pipeline never hard-depends on the AI tier.
+- **Idempotent by default** — per-week upload re-runs safely; `--force` is a deliberate, explicit override, not a workaround.
+- **Config over hardcoding** — all paths, IDs, and categories live in YAML + `.env` (`${VAR}` expansion); nothing is hardcoded.
 
 ## Relationships
 

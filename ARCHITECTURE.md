@@ -147,4 +147,54 @@ VBA Export (Outlook) -> calendar_export.json
 
 ---
 
+## CLI Reference
+
+`scripts/run.py` (argparse) drives the pipeline:
+
+| Command | What it does |
+|---------|--------------|
+| `export` | Show the VBA calendar-export instructions |
+| `preview` | Generate the Excel preview (AI mode); `--no-ai` faster, `--weeks N` to limit |
+| `status` | Show weeks and totals |
+| `upload --all` / `--latest` / `<YYYY-MM-DD>` | Upload all / most-recent / a specific week; `--force` re-uploads existing weeks |
+| `report [--weeks N]` | Manager report |
+| `catchup [--dry-run]` | Auto-detect + preview missing weeks |
+
+---
+
+## Key conventions
+
+- **Flat module layout.** Every module is a direct child of `src/`; no subpackages (text-only codemap per ADR-51).
+- **Functional style.** No classes unless necessary; TypedDict for type hints; explicit imports (`from src.module import function`).
+- **Config over hardcoding.** All paths/IDs/categories in YAML + `.env` (`${VAR}` expansion); `requirements.txt` (not `pyproject.toml`, intentional).
+- **Append-only files.** `LESSONS.md` — never edit old entries (ADR-29). `JOURNAL.md` — newest-first prepend.
+- **Naming.** snake_case Python; kebab-case markdown; `ADR-NN-topic.md` if local ADRs are ever added (ADR-34).
+
+---
+
+## Authority and governance
+
+corp-sca-time-automation is a **standalone pipeline repo** governed by `.dev-knowledge` (Layer-2 binding authority, ADR-31). It carries **no local ADRs** — governance lives in `.dev-knowledge/docs/decisions/`.
+
+- **Conformance:** verified out-of-band, read-only, by `.dev-knowledge/scripts/audit.py`. `.dev-knowledge` never writes here (Layer-2 invariant, ADR-28).
+- **One shared input, read-only:** reads `Project_Codes.xlsm` (also read by `corp-opportunity-manager`) — a shared input, not a code dependency.
+
+---
+
+## Validators and enforcement
+
+- **`python -m ruff check src/`** — lint.
+- **`python -m pytest`** — unit tests (caveat: some `tests/test_*.py` are standalone scripts, not pytest-collected; see BACKLOG).
+- **No pre-commit hooks** — checks run manually (CLAUDE §9).
+- **External conformance (read-only):** `.dev-knowledge/scripts/audit.py` — seven-file canonical baseline + structural spine (ADR-38 A6).
+
+---
+
+## Governing ADRs
+
+No local ADRs; binding decisions are ecosystem-level in `.dev-knowledge/docs/decisions/`:
+ADR-29 (append-only LESSONS) · ADR-33 (VISION universalization) · ADR-34 (naming) · ADR-38 (universal baseline + A6 seven-file canonical set) · ADR-42 (handoffs centralized) · ADR-49 (record consolidation) · ADR-51 (ARCHITECTURE convention, text-only codemap override) · ADR-53 (CLAUDE.md) · ADR-60 (docs taxonomy).
+
+---
+
 **Maintained by:** Rob

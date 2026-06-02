@@ -2,6 +2,7 @@
 Test script to verify Gemini AI client detection with project_codes.xlsx as source of truth.
 """
 
+from src.gap_filler import AUTOFILL_CATEGORIES, NEVER_AUTOFILL
 from src.mapper import detect_client
 
 # Test cases for Gemini AI client detection
@@ -54,8 +55,6 @@ for i, event in enumerate(test_events, 1):
     print()
 
 print("\n=== Test autofill categories ===\n")
-
-from src.gap_filler import AUTOFILL_CATEGORIES, NEVER_AUTOFILL
 
 print(f"AUTOFILL_CATEGORIES: {AUTOFILL_CATEGORIES}")
 print(f"NEVER_AUTOFILL: {NEVER_AUTOFILL}")

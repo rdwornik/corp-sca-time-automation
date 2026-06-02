@@ -1,0 +1,20 @@
+# Tier-1 ruff lint gate — pinned-rev (portable, deterministic).
+#
+# WHY this is a separate asset, not a CC-plugin hook: a Claude Code plugin cannot
+# ship a .pre-commit-config.yaml (the pre-commit *framework* is outside CC-plugin
+# scope — confirmed against the official plugin docs). So the gate installs ALONGSIDE
+# the plugin: merge this stanza into the host repo's .pre-commit-config.yaml.
+#
+# PINNED REV (not `language: system`): the host fetches exactly this ruff version into
+# pre-commit's isolated env, so the gate is deterministic across machines and there is
+# no version-mismatch / phantom-I001 (that failure mode was an *unpinned* mismatch; a
+# pinned rev is safe). Bump `rev` deliberately, ecosystem-wide.
+#
+# Install: see INSTALL.md (add to repos:, then `pre-commit install`).
+
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.15.5
+  hooks:
+    - id: ruff
+      name: Ruff lint gate (Tier-1, pinned rev; blocks on violations)
+      args: []   # gate mode: `ruff check` (no --fix) so violations surface, not auto-silenced

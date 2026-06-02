@@ -1,7 +1,16 @@
-# JOURNAL — corp-sca-time-automation
+# Journal — corp-sca-time-automation
 
 Append-only session log. Newest entries on top. Chronological record only —
 pending work lives in `BACKLOG.md`, decisions in `docs/decisions/`.
+
+---
+
+## 2026-06-02 — Ecosystem unification to the 7-file canonical standard (ADR-38 A6)
+
+- Did: Unified corp-sca to the locked `.dev-knowledge` canonical standard. Built `CONTRIBUTING.md` + `LESSONS.md`. Added the required `last_reviewed` CLAUDE frontmatter (the previously-deferred "contested representation" — now resolved by the lock) and restored the canonical CLAUDE §5 Critical rules / §6 Session start protocol spine (the old §5 Setup → CONTRIBUTING, §6 Key commands → ARCHITECTURE § CLI Reference). VISION +§Values; ARCHITECTURE +Key conventions/+Authority/+Validators/+Governing ADRs +CLI Reference. Migrated `BACKLOG.md` to the ADR-66 story-map. Fixed this file's H1 (`# JOURNAL` → `# Journal`).
+- Result: `.dev-knowledge` structural audit passes (was failing `adr38_baseline` + `canonical_md_visibility` on the two missing files, and `canonical_structure` on eight spine items). 7 open backlog items preserved across 2 themes.
+- Changes: `CONTRIBUTING.md` (new), `LESSONS.md` (new), `VISION.md`, `ARCHITECTURE.md`, `CLAUDE.md`, `BACKLOG.md`, `JOURNAL.md`.
+- Next: ecosystem unification complete — all five repos at the canonical standard.
 
 ---
 

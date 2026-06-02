@@ -1,54 +1,45 @@
 # BACKLOG — corp-sca-time-automation
 
-<!-- schema: ADR-41 as relaxed by ADR-47 | grooming: per-handoff + quarterly deep -->
+## Big picture
 
-Cross-session pending items. Single source of truth for actionable work. Entry
-form: `### [P{N}] [open|closed] <title>` with **What / Why / Added / Status**.
-See `.dev-knowledge` ADR-41 (as relaxed by ADR-47) for schema and grooming
-cadence. Items below were migrated from the CLAUDE.md "Known issues" list on
-2026-05-27 (tech-debt belongs in the tracked backlog, not in prose).
+corp-sca-time-automation turns a manual weekly chore — submitting time entries to the
+SharePoint SCA Time Tracker — into a review-and-approve pipeline from Outlook calendar
+exports. The backlog raises the safety net (test coverage) and pays down code-hygiene
+debt so the pipeline stays trustworthy and readable.
+
+**Themes (backbone):** Test coverage & safety net · Code hygiene & dead-code cleanup
 
 ---
 
-### [P2] [open] Thin automated test coverage on 4 pipeline modules
-- **What:** Four `src/` modules have no pytest coverage — no test file imports them: `config`, `loader`, `project_codes`, `text_utils`. The rest of the pipeline IS covered: `sharepoint`, `gap_filler`, `mapper`, `date_utils`, `aggregator`, `overlap`, `gemini_client`, `excel_writer`, `excel_preview` are imported and exercised by `tests/test_*.py` (69 passed / 1 skipped via `python -m pytest`). A few test files (`test_client.py`, `test_column_order.py`, `test_no_aggregation.py`, `test_gemini_client_detection.py`) are standalone scripts with no `test_` functions — pytest collects nothing from them, but they are the exception, not the rule.
-- **Why:** The 4 uncovered modules (config loading, calendar load/filter, project-code matching, text normalization) can regress silently. Adding pytest tests for them raises the safety net.
-- **Added:** 2026-05-27 (migrated from CLAUDE.md Known issues)
-- **Re-scoped:** 2026-06-02 — corrected the stale claim "most files are standalone / 12 modules at zero coverage" (verified by import-grep + pytest: 8 of 12 are actually covered); narrowed to the 4 genuinely-uncovered modules. Priority unchanged.
-- **Status:** open
+## Test coverage & safety net
+> As a maintainer, I want the silent-regression-prone modules under test, so a bad change is caught before it ships a wrong week.
 
-### [P3] [open] `aggregator.py` `aggregate_entries()` is misnamed
-- **What:** `aggregate_entries()` sorts entries and adds week-total rows; it does not aggregate/sum. Rename to reflect actual behavior (e.g. `sort_and_total_entries()`).
-- **Why:** Misleading name invites incorrect assumptions about behavior.
-- **Added:** 2026-05-27 (migrated from CLAUDE.md Known issues)
-- **Status:** open
+### Cover the four genuinely-untested pipeline modules
+So that config loading, calendar load/filter, project-code matching, and text normalization cannot regress silently.
+- [#1] [P2][M] Add pytest coverage for the 4 uncovered `src/` modules — `config`, `loader`, `project_codes`, `text_utils` (the other 8 are covered: 69 passed / 1 skipped) · Done when: each of the 4 has a `tests/test_*.py` exercising it under `python -m pytest` · refs migrated from CLAUDE Known-issues; re-scoped 2026-06-02
 
-### [P3] [open] Duplicated `NO_OPPORTUNITY_ID_CATEGORIES` constant
-- **What:** `NO_OPPORTUNITY_ID_CATEGORIES` is defined in both `excel_preview.py` and `gap_filler.py`. Consolidate to a single source.
-- **Why:** Duplicated constants drift independently → subtle bugs.
-- **Added:** 2026-05-27 (migrated from CLAUDE.md Known issues)
-- **Status:** open
+---
 
-### [P3] [open] Duplicated `CATEGORY_MAP` constant
-- **What:** SharePoint `CATEGORY_MAP` is duplicated in `sharepoint.py` versus the mapper/overlap modules. Consolidate to a single source.
-- **Why:** Same drift risk as the duplicated constant above.
-- **Added:** 2026-05-27 (migrated from CLAUDE.md Known issues)
-- **Status:** open
+## Code hygiene & dead-code cleanup
+> As a reader, I want names that match behavior and one source of truth per constant/type, so the pipeline does not mislead the next change.
 
-### [P3] [open] Dead `models.py` TypedDicts
-- **What:** `models.py` defines TypedDicts that are not imported elsewhere; `CalendarEvent` is duplicated in `loader.py`. Either adopt `models.py` as the shared type source or remove the dead definitions.
-- **Why:** Dead/duplicated type definitions confuse the source of truth for data shapes.
-- **Added:** 2026-05-27 (migrated from CLAUDE.md Known issues)
-- **Status:** open
+### Fix the misleading name and the duplicated constants
+So that no call site reasons wrongly from a lying name or a constant that drifted between copies.
+- [#2] [P3][S] Rename `aggregator.py::aggregate_entries()` (it sorts + adds `>>> WEEK TOTAL` rows; it does not aggregate) to e.g. `sort_and_total_entries()` · Done when: the rename lands + call sites updated · refs ARCHITECTURE Invariant #4
+- [#3] [P3][S] Consolidate the duplicated `NO_OPPORTUNITY_ID_CATEGORIES` constant (defined in both `excel_preview.py` and `gap_filler.py`) to a single source · Done when: one definition remains · refs CLAUDE §10
+- [#4] [P3][S] Consolidate the duplicated SharePoint `CATEGORY_MAP` (`sharepoint.py` vs the mapper/overlap modules) to a single source · Done when: one definition remains · refs CLAUDE §10
 
-### [P3] [open] Deprecated dead code: `detect_client_from_comment()`
-- **What:** `detect_client_from_comment()` in `gemini_client.py` is deprecated dead code. Remove it.
-- **Why:** Dead code increases maintenance surface and misleads readers.
-- **Added:** 2026-05-27 (migrated from CLAUDE.md Known issues)
-- **Status:** open
+### Remove the dead code and resolve the dead types
+So that the source of truth for data shapes is unambiguous and unreachable code stops accruing maintenance surface.
+- [#5] [P3][S] Resolve the dead `models.py` TypedDicts (not imported elsewhere; `CalendarEvent` is duplicated in `loader.py`) — adopt `models.py` as the shared type source or remove the dead definitions · Done when: types have a single source · refs CLAUDE Known-issues
+- [#6] [P3][S] Remove the deprecated dead `detect_client_from_comment()` in `gemini_client.py` · Done when: the function is gone + no references remain · refs CLAUDE Known-issues
+- [#7] [P3][S] Verify `split_multiday_events()` in `excel_preview.py` is needed (used only internally) or remove it · Done when: kept-with-justification or removed · refs CLAUDE Known-issues
 
-### [P3] [open] Verify `split_multiday_events()` is needed
-- **What:** `split_multiday_events()` in `excel_preview.py` is defined but only used internally — confirm it is needed or remove it.
-- **Why:** Possible dead/unreachable code path.
-- **Added:** 2026-05-27 (migrated from CLAUDE.md Known issues)
-- **Status:** open
+---
+
+**About this file** — ADR-66 story-map (Big Picture → Theme → User Story → Task), migrated
+2026-06-02 from the ADR-41/47 stream schema per ADR-38 A6 (canonical backlog form, all
+repos). Stories are human (goal + `So that`); tasks carry `[#id] [P][size] · Done when · refs`.
+Done tasks **leave** (ADR-65); git is the implementation record.
+
+**Grooming log:** 2026-05-27 (migrated from CLAUDE Known-issues) · 2026-06-02 (story-map migration; 7 open items preserved). Next quarterly: 2026-07-01.

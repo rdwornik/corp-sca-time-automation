@@ -1,3 +1,9 @@
+---
+last_reviewed: 2026-06-02
+status: active
+owner: Rob
+---
+
 # CLAUDE.md — SCA Time Automation
 > **Session contract for Claude Code in this repo.** Read on every session start (auto). Single canonical agent-instruction file per ADR-53.
 >
@@ -34,40 +40,26 @@ See `ARCHITECTURE.md` for the pipeline, module map, layer/invariants, and data f
 - **Dev standards:** Python 3.12+, functional style (no classes unless necessary); TypedDict for type hints; explicit imports (`from src.module import function`); YAML/`.env` for all config, no hardcoded values; graceful degradation (AI → keyword fallback); all comments/docs in English.
 - **Linting/testing:** `python -m ruff check src/`; `python -m pytest`.
 
-## 5. Setup
+## 5. Critical rules
 
-```bash
-python -m venv .venv && .venv\Scripts\activate
-pip install -r requirements.txt
-```
+1. **The Excel preview is a mandatory human-review gate** — never upload a week that has not been reviewed.
+2. **`GRAPH_ACCESS_TOKEN` is per-session (~1h)** — refresh before an upload run; it falls back to `az account get-access-token` when `az login` is active.
+3. **Never add API keys to a repo-local `.env`** beyond the per-session `GRAPH_ACCESS_TOKEN` — global secrets live in `Documents/.secrets/.env` (PowerShell profile). This repo uses `GEMINI_API_KEY`.
+4. **Upload is idempotent per week** — do not add `--force` to bypass an apparent "missing" week without checking first.
+5. **Config lives in YAML + `.env` (`${VAR}` expansion)** — never hardcode paths, IDs, or categories.
+6. **Client detection degrades gracefully** (Gemini AI → keyword) — do not hard-fail when the AI tier is unavailable.
 
-Create a `.env` at the repo root with (no `.env.example` template is kept — root hygiene, ADR-49/PLAYBOOK):
-- `ONEDRIVE_PATH` — path to your OneDrive (for `project_codes.xlsx`)
-- `GRAPH_ACCESS_TOKEN` — Graph API bearer token from [Graph Explorer](https://developer.microsoft.com/en-us/graph/graph-explorer) (expires hourly). **Optional if `az login` is active** — the tool falls back to `az account get-access-token` automatically; set it in `.env` only when Azure CLI is unavailable.
-- `GEMINI_API_KEY` — Gemini AI key (optional; enables AI client detection)
-- Azure IDs — tenant / client IDs per `config/settings.yaml`
+(First-time environment setup + the `.env` variable list live in `CONTRIBUTING.md` § Pre-commit setup.)
 
-Then:
-1. Export calendar events: `cscript scripts/calendar_export.vbs` (no Outlook macro setup needed) — `python scripts/run.py export` prints these instructions.
-2. Symlink project codes: `mklink data\input\project_codes.xlsx "path\to\Project_Codes.xlsx"`.
+## 6. Session start protocol
 
-API keys are otherwise loaded globally from `Documents/.secrets/.env` via the PowerShell profile — do **not** add keys to a repo-local `.env` beyond the per-session `GRAPH_ACCESS_TOKEN`. This repo uses `GEMINI_API_KEY`.
+1. `git status` — clean working tree?
+2. `git log --oneline -5` — recent context
+3. Read `VISION.md` + `ARCHITECTURE.md` if continuing structural work
+4. `python -m pytest` — confirm green before changes
+5. Wait for Rob's prompt — never improvise
 
-## 6. Key commands
-
-```bash
-python scripts/run.py export                 # Show VBA export instructions
-python scripts/run.py preview                # Generate Excel preview (AI mode)
-python scripts/run.py preview --no-ai        # Without AI (faster)
-python scripts/run.py preview --weeks 12     # Limit to last 12 weeks
-python scripts/run.py status                 # Show weeks and totals
-python scripts/run.py upload --all           # Upload all weeks
-python scripts/run.py upload --latest        # Upload most recent week
-python scripts/run.py upload 2025-12-07      # Upload specific week
-python scripts/run.py upload --all --force   # Re-upload even if weeks exist
-python scripts/run.py report [--weeks N]     # Manager report
-python scripts/run.py catchup [--dry-run]    # Auto-detect + preview missing weeks
-```
+(The `scripts/run.py` command reference lives in `ARCHITECTURE.md` § CLI Reference.)
 
 ## 7. Slash commands available
 
@@ -95,7 +87,7 @@ No `.pre-commit-config.yaml`. Lint/test run manually (`python -m ruff check src/
 Governance ADRs live in `../.dev-knowledge/docs/decisions/`:
 - ADR-33: VISION.md universalization (frontmatter schema; tier/scale removed 2026-05-23)
 - ADR-34: file naming conventions (hyphen ADR names)
-- ADR-38: universal repo baseline (VISION + ARCHITECTURE + BACKLOG mandatory; README optional, A5)
+- ADR-38: universal repo baseline — A6 (2026-06-02) makes the seven-file canonical set mandatory (VISION, ARCHITECTURE, CLAUDE, BACKLOG, CONTRIBUTING, JOURNAL, LESSONS); README optional
 - ADR-49: record consolidation (CHANGELOG retired; git history as record)
 - ADR-51: ARCHITECTURE.md convention (universal; text-only codemap override for flat repos)
 - ADR-53: CLAUDE.md as single canonical agent-instruction file
@@ -105,6 +97,7 @@ Governance ADRs live in `../.dev-knowledge/docs/decisions/`:
 
 - v1.0 (pre-ADR-53) — free-form reference (what-this-repo-does, quick-start, inline architecture + data flow + Known-issues + module table).
 - v2.0 (2026-05-27) — re-homed into the ADR-53 12-section template; architecture + data flow moved to `ARCHITECTURE.md`; "Known issues" moved to `BACKLOG.md`; purpose/scope moved to `VISION.md`; `.env.example` retired (env vars documented in §5); dangling `../ECOSYSTEM.md` link removed.
+- v2.1 (2026-06-02) — ecosystem-unify to the seven-file canonical standard (ADR-38 A6): added the required `last_reviewed` YAML frontmatter (the previously-deferred "contested representation" — resolved by the lock); restored the canonical §5 Critical rules + §6 Session start protocol spine (the old §5 Setup → CONTRIBUTING, §6 Key commands → ARCHITECTURE § CLI Reference); §11 ADR-38 line updated to A6. Added `CONTRIBUTING.md` + `LESSONS.md`; VISION +§Values; ARCHITECTURE +Key conventions/+Authority/+Validators/+Governing ADRs; BACKLOG migrated to the ADR-66 story-map.
 
 ---
 

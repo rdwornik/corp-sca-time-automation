@@ -11,8 +11,6 @@ owner: Rob
 
 ## 1. First read (session start)
 
-@CLAUDE-FLOOR.md
-
 In order, read:
 1. This file (you're here)
 2. `VISION.md` — purpose, scope, relationships
@@ -74,7 +72,7 @@ User-level (`~/.claude/commands/`): `/boot`, `/save`, `/session-summary`. No rep
 
 ## 9. Hooks active
 
-`.pre-commit-config.yaml` defines one local hook — `floor-hash`: verifies `CLAUDE-FLOOR.md` against its `.sha256` sidecar via `scripts/check_floor_hash.py` (ADR-78; `language: system`). Activate with `pre-commit install`. Lint/test still run manually (`python -m ruff check src/`, `python -m pytest`) per §4 — they are not wired into the hook.
+`.pre-commit-config.yaml` is present but defines no hooks (the `floor-hash` floor-sidecar hook was removed when the round-1 floor artifacts were reverted). The pre-commit framework stays installed (`pre-commit install`); lint/test still run manually (`python -m ruff check src/`, `python -m pytest`) per §4 — they are not wired into any hook.
 
 ## 10. Anti-patterns specific to Claude Code in this repo
 

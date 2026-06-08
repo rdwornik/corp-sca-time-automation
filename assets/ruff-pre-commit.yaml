@@ -10,7 +10,7 @@
 # no version-mismatch / phantom-I001 (that failure mode was an *unpinned* mismatch; a
 # pinned rev is safe). Bump `rev` deliberately, ecosystem-wide.
 #
-# Install: see INSTALL.md (add to repos:, then `pre-commit install`).
+# Install: add to repos:, then `pre-commit install` (procedure: hub generator / runbook #131).
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.15.5

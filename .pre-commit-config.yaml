@@ -1,9 +1,2 @@
-repos:
-  - repo: local
-    hooks:
-      - id: floor-hash
-        name: CLAUDE-FLOOR.md sidecar hash verify (ADR-78)
-        entry: python scripts/check_floor_hash.py
-        language: system
-        pass_filenames: false
-        files: '^CLAUDE-FLOOR\.md(\.sha256)?$'
+# pre-commit framework retained; floor-hash hook removed (floor artifacts reverted)
+repos: []

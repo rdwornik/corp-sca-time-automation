@@ -11,6 +11,8 @@ owner: Rob
 
 ## 1. First read (session start)
 
+@.claude/CLAUDE-FLOOR.md
+
 In order, read:
 1. This file (you're here)
 2. `VISION.md` — purpose, scope, relationships

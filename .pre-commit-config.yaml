@@ -1,2 +1,10 @@
-# pre-commit framework retained; floor-hash hook removed (floor artifacts reverted)
-repos: []
+# pre-commit framework retained; floor-hash sidecar guard active (ADR-78)
+repos:
+  - repo: local
+    hooks:
+      - id: floor-hash-verify
+        name: Verify CLAUDE-FLOOR.md matches its sha256 sidecar
+        entry: python .claude/check_floor_hash.py
+        language: system
+        files: '^\.claude/CLAUDE-FLOOR\.md(\.sha256)?$'
+        pass_filenames: false

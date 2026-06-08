@@ -5,6 +5,14 @@ pending work lives in `BACKLOG.md`, decisions in `docs/decisions/`.
 
 ---
 
+## 2026-06-08 — Obsolescence pass: CLAUDE.md §9 hooks-active currency (ADR-78)
+
+- Did: Updated CLAUDE.md §9 from "No `.pre-commit-config.yaml` / manual lint-test" to the factual state — the `floor-hash` local hook (`scripts/check_floor_hash.py`, sidecar verify); pointer to config/script/ADR, not a copy. Bumped footer date.
+- Result: §9 matches reality after the prior floor-hash-guard ship; §8 (Skills) left as-is — a hook belongs in §9, not §8. Doc-only; pytest 69/1, ruff clean.
+- Next: none — §9 current; if lint/test are ever wired into pre-commit, revisit §9's "manual" note.
+
+---
+
 ## 2026-06-02 — Ecosystem unification to the 7-file canonical standard (ADR-38 A6)
 
 - Did: Unified corp-sca to the locked `.dev-knowledge` canonical standard. Built `CONTRIBUTING.md` + `LESSONS.md`. Added the required `last_reviewed` CLAUDE frontmatter (the previously-deferred "contested representation" — now resolved by the lock) and restored the canonical CLAUDE §5 Critical rules / §6 Session start protocol spine (the old §5 Setup → CONTRIBUTING, §6 Key commands → ARCHITECTURE § CLI Reference). VISION +§Values; ARCHITECTURE +Key conventions/+Authority/+Validators/+Governing ADRs +CLI Reference. Migrated `BACKLOG.md` to the ADR-66 story-map. Fixed this file's H1 (`# JOURNAL` → `# Journal`).

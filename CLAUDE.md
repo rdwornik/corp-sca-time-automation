@@ -74,7 +74,7 @@ User-level (`~/.claude/commands/`): `/boot`, `/save`, `/session-summary`. No rep
 
 ## 9. Hooks active
 
-No `.pre-commit-config.yaml`. Lint/test run manually (`python -m ruff check src/`, `python -m pytest`) per §4.
+`.pre-commit-config.yaml` defines one local hook — `floor-hash`: verifies `CLAUDE-FLOOR.md` against its `.sha256` sidecar via `scripts/check_floor_hash.py` (ADR-78; `language: system`). Activate with `pre-commit install`. Lint/test still run manually (`python -m ruff check src/`, `python -m pytest`) per §4 — they are not wired into the hook.
 
 ## 10. Anti-patterns specific to Claude Code in this repo
 
@@ -103,5 +103,5 @@ Governance ADRs live in `../.dev-knowledge/docs/decisions/`:
 
 ---
 
-**Last updated:** 2026-06-02
+**Last updated:** 2026-06-08
 **Maintained by:** Rob

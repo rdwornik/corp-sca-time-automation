@@ -240,6 +240,63 @@ def cmd_upload(week: str = None, latest: bool = False, all_weeks: bool = False, 
         sys.exit(1)
 
 
+def cmd_export_tenrox(week: str):
+    """Export an approved week to a Tenrox console-uploader JSON payload.
+
+    Reads the approved preview Excel, builds a per-day JSON payload from
+    config/tenrox_mapping.yaml, and writes it to data/outbox/<week>.json for
+    the in-page console snippet (scripts/tenrox_console_uploader.js). This is
+    a pure data transform; it never contacts Tenrox. Run only AFTER the Excel
+    preview has been reviewed and approved (STOP-GATE 4).
+    """
+    import json
+    from src.config import get_project_root
+    from src.tenrox import build_week_payload
+
+    settings = get_settings()
+    preview_path = settings["paths"]["excel_preview"]
+    if not Path(preview_path).exists():
+        print(f"Error: Preview file not found: {preview_path}")
+        print("Run 'python scripts/run.py preview' first")
+        sys.exit(1)
+
+    df = pd.read_excel(preview_path)
+    weeks = sorted(
+        w for w in df[df["category"] != ">>> WEEK TOTAL"]["week_beginning"].unique()
+        if pd.notna(w)
+    )
+    if week not in weeks:
+        print(f"Error: Week '{week}' not found in preview")
+        print(f"Available weeks: {', '.join(map(str, weeks))}")
+        sys.exit(1)
+
+    payload = build_week_payload(df, week)
+
+    outbox = get_project_root() / "data" / "outbox"
+    outbox.mkdir(parents=True, exist_ok=True)
+    out_path = outbox / f"{week}.json"
+    out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    s = payload["summary"]
+    print(f"Tenrox payload for week {week} -> {out_path}")
+    print(f"  postable: {s['postable_count']} entries / {s['postable_hours']}h")
+    print(f"  held:     {s['held_count']} entries / {s['held_hours']}h")
+    print(f"  skipped:  {s['skipped_count']} rows")
+    if payload["entries"]:
+        print()
+        print("  date        category                        hours  post  note")
+        for e in payload["entries"]:
+            flag = "yes" if e["postable"] else "HOLD"
+            reason = "" if e["postable"] else f"  ({e['hold_reason']})"
+            print(f"  {e['date']}  {e['category'][:30]:<30}  {e['hours']:>5}  {flag}{reason}")
+    for sk in payload["skipped"]:
+        print(f"  SKIP {sk['date']} {sk['category']} {sk['hours']}h - {sk['reason']}")
+    print()
+    print("Next: open the timesheet week in Tenrox, then run the console uploader")
+    print("(scripts/tenrox_console_uploader.js) and load this JSON. See")
+    print("docs/tenrox-console-uploader.md.")
+
+
 def cmd_report(weeks_back: int | None = None):
     """Generate manager report (Weekly Hours + Opportunities)."""
     from scripts.manager_report import generate_manager_report
@@ -444,6 +501,12 @@ def main():
     upload_parser.add_argument("--all", action="store_true", help="Upload all weeks from preview")
     upload_parser.add_argument("--force", action="store_true", help="Upload even if week already exists in SharePoint")
 
+    # export-tenrox command
+    export_tenrox_parser = subparsers.add_parser(
+        "export-tenrox", help="Build a Tenrox console-uploader JSON payload for an approved week"
+    )
+    export_tenrox_parser.add_argument("--week", required=True, help="Week to export (YYYY-MM-DD Sunday)")
+
     # status command
     subparsers.add_parser("status", help="Show weeks in preview")
 
@@ -470,6 +533,8 @@ def main():
             cmd_preview(use_ai=not args.no_ai, weeks_back=args.weeks)
         elif args.command == "upload":
             cmd_upload(week=args.week, latest=args.latest, all_weeks=getattr(args, 'all', False), force=args.force)
+        elif args.command == "export-tenrox":
+            cmd_export_tenrox(week=args.week)
         elif args.command == "status":
             cmd_status()
         elif args.command == "report":

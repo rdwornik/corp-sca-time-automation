@@ -59,11 +59,30 @@ cookie to paste for the upload itself. The session's JWT lasts ~1h; if the tab
 has been idle and calls start failing, reload the timesheet page and re-run
 from step 4.
 
+## First-use calibration (Step 5, write-free tracing)
+
+The timesheet grid runs in a nested `MyTimesheet.aspx` iframe and the page mints
+its own single-use pageKeys, so the exact save/note contract is learned by
+watching the page's real requests rather than guessing:
+
+1. Open the timesheet week, paste the snippet, run `TenroxUploader.recon();`
+   (dumps framework methods + child frames).
+2. Run `TenroxUploader.trace();` — installs write-free fetch/XHR logging across
+   all frames.
+3. In the **UI**, one save at a time (each prints a `TRACE` line with the live
+   pageKey + body, and the response):
+   - add a **0.25h Administration** entry + Save  → create contract + write proof
+   - add a **note** to it + Save                  → the note contract (Step-7 gate)
+   - set it to **0** + Save                       → delete via `RegularTime:0`
+4. Paste the `TRACE` output back. The payload builder + `postEntry` are then
+   finalized to replicate the page's exact mechanism, and the sales hold lifts
+   once the note field is wired.
+
 ## Known-pending
 
-- **Note attach**: the request that saves a note was not captured. Until it is,
-  sales entries stay held. Deliver a DevTools capture of a note being saved on
-  an entry, and the snippet's `postEntry` grows a note field.
-- **pageKey acquisition**: finalized from the `recon()` output at first
-  in-browser use (Step-5). Long term, a non-federated API credential (BACKLOG
-  #8) would replace this whole console step.
+- **Note attach + pageKey**: both finalized from the Step-5 `trace()` capture
+  above. Until the note contract lands, sales entries stay held — and because
+  week 2026-06-28 is sales-dominated, the note capture is a **hard gate** for
+  that upload.
+- Long term, a non-federated API credential (BACKLOG #8) replaces this whole
+  console step.

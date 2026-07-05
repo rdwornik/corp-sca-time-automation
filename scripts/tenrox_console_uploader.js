@@ -76,6 +76,33 @@
     ctx.modelGlobals = Object.keys(window).filter(k =>
       /timesheet|assignment|entries/i.test(k)).slice(0, 40);
 
+    // 4. Methods on the framework objects that might BE the page's own save
+    //    path (reusing one sidesteps the single-use-pageKey problem entirely).
+    function methodsOf(objName) {
+      let o; try { o = window[objName]; } catch (_) { return null; }
+      if (!o || typeof o !== "object") return null;
+      const names = new Set();
+      for (let p = o; p && p !== Object.prototype; p = Object.getPrototypeOf(p)) {
+        for (const k of Object.getOwnPropertyNames(p)) {
+          try { if (typeof o[k] === "function") names.add(k); } catch (_) { /* getter */ }
+        }
+      }
+      return [...names].filter(k => /save|update|post|entry|entries|submit|timesheet|call|method|key/i.test(k)).slice(0, 40);
+    }
+    ctx.frameworkMethods = {
+      Tenrox: methodsOf("Tenrox"), tenrox: methodsOf("tenrox"),
+      timesheetObject: methodsOf("timesheetObject"),
+    };
+
+    // 5. Same-origin child frames (the grid runs in the MyTimesheet iframe).
+    ctx.childFrames = [];
+    try {
+      for (let i = 0; i < window.frames.length; i++) {
+        try { ctx.childFrames.push(window.frames[i].location.pathname); }
+        catch (_) { ctx.childFrames.push("<cross-origin>"); }
+      }
+    } catch (_) { /* noop */ }
+
     state.context = ctx;
     log("RECON (write-free). Paste this back to finalize the uploader:");
     console.log(JSON.stringify(ctx, null, 2));
@@ -246,6 +273,84 @@
     catch (_) { throw new Error("non-JSON response (status " + resp.status + "): " + text.slice(0, 120)); }
   }
 
-  window.TenroxUploader = { recon, load, dryRun, post, _state: state };
-  log("loaded. Start with TenroxUploader.recon()  (write-free).");
+  // ---- TRACE: write-free instrumentation of the page's own save requests ---
+  // Wraps fetch + XHR across all same-origin frames and logs every
+  // MyTimesheet.aspx pageMethod call (request pageKey + body, and response).
+  // It does NOT send anything itself - the operator performs real UI saves and
+  // this records the exact live contract (incl. how the page sources pageKey
+  // and how a note attaches). Reading only; safe.
+  function trace() {
+    const seen = [];
+    state.trace = seen;
+    const isTs = (u) => typeof u === "string" && u.indexOf("MyTimesheet.aspx") !== -1;
+    const summarize = (url, body) => {
+      let pageKey = "", pageMethod = "";
+      try { pageKey = new URL(url, location.origin).searchParams.get("pageKey") || ""; } catch (_) { /* noop */ }
+      const m = /pageMethod=([^&]+)/.exec(body || "");
+      if (m) pageMethod = decodeURIComponent(m[1]);
+      return { pageKey, pageMethod };
+    };
+    function allFrames() {
+      const out = [];
+      (function walk(w) {
+        try { out.push(w); } catch (_) { return; }
+        let n = 0; try { n = w.frames.length; } catch (_) { n = 0; }
+        for (let i = 0; i < n; i++) { try { void w.frames[i].location.href; walk(w.frames[i]); } catch (_) { /* cross-origin */ } }
+      })(window.top || window);
+      return out;
+    }
+    let hooks = 0;
+    for (const w of allFrames()) {
+      try {
+        if (w.fetch && !w.fetch.__tnx) {
+          const of = w.fetch;
+          w.fetch = function (input, init) {
+            const url = typeof input === "string" ? input : (input && input.url);
+            const body = init && init.body ? String(init.body) : "";
+            if (isTs(url)) {
+              const s = summarize(url, body);
+              const rec = { via: "fetch", pageMethod: s.pageMethod, pageKey: s.pageKey, body: body.slice(0, 2000) };
+              seen.push(rec);
+              log("TRACE fetch", s.pageMethod, "pageKey=" + s.pageKey);
+              console.log("  body:", body.slice(0, 500));
+              return of.apply(this, arguments).then(async (r) => {
+                try { rec.resp = (await r.clone().text()).slice(0, 4000); console.log("  resp:", rec.resp.slice(0, 500)); } catch (_) { /* noop */ }
+                return r;
+              });
+            }
+            return of.apply(this, arguments);
+          };
+          w.fetch.__tnx = true; hooks++;
+        }
+        const XP = w.XMLHttpRequest && w.XMLHttpRequest.prototype;
+        if (XP && !XP.__tnx) {
+          const oopen = XP.open, osend = XP.send;
+          XP.open = function (m, url) { this.__tnxUrl = url; return oopen.apply(this, arguments); };
+          XP.send = function (body) {
+            const url = this.__tnxUrl || "";
+            if (isTs(url)) {
+              const s = summarize(url, String(body || ""));
+              const rec = { via: "xhr", pageMethod: s.pageMethod, pageKey: s.pageKey, body: String(body || "").slice(0, 2000) };
+              seen.push(rec);
+              log("TRACE xhr", s.pageMethod, "pageKey=" + s.pageKey);
+              console.log("  body:", String(body || "").slice(0, 500));
+              this.addEventListener("load", () => { try { rec.resp = this.responseText.slice(0, 4000); console.log("  resp:", rec.resp.slice(0, 500)); } catch (_) { /* noop */ } });
+            }
+            return osend.apply(this, arguments);
+          };
+          XP.__tnx = true; hooks++;
+        }
+      } catch (_) { /* frame not accessible */ }
+    }
+    log(`trace installed on ${hooks} hook(s) across frames.`);
+    log("Now in the timesheet UI, one action at a time (each logs a TRACE line):");
+    log("  1) add a 0.25h Administration entry + Save   (create contract + write proof)");
+    log("  2) add a note to it + Save                   (NOTE contract - the Step-7 gate)");
+    log("  3) set that entry to 0 + Save                (delete via RegularTime:0)");
+    log("Then paste the TRACE lines back. Full records: TenroxUploader._state.trace");
+    return true;
+  }
+
+  window.TenroxUploader = { recon, trace, load, dryRun, post, _state: state };
+  log("loaded. Start with TenroxUploader.recon()  (write-free), then TenroxUploader.trace().");
 })();

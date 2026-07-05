@@ -1,0 +1,125 @@
+# Tenrox timesheet mapping - SCA category -> Upland assignment row.
+#
+# Source of truth for the ASPX UpdateTimeEntries loader (src/tenrox.py).
+# UIDs captured from the GetTimesheetDetails grid-load on 2026-07-05
+# (user 23548, template 1119 "Spain (In/Out)"). Assignment rows are
+# user-level and stable across weeks; TimesheetUid is per-week and read at
+# run time from the grid-load response - it is NOT stored here.
+#
+# Business rules: HANDOFF Tenrox migration section 4 (delivered in-session
+# 2026-07-05). This file is the durable in-repo form of section 4.2/4.3.
+
+timesheet:
+  user_unique_id: 23548          # userUniqueId / UserUid (bootstrap profile)
+  template_uid: 1119
+  template_name: "Spain (In/Out)"
+  time_increment_minutes: 15
+
+# One entry per Tenrox assignment row a time entry can post against.
+# attribute_data is copied verbatim into the UpdateTimeEntries payload's
+# AssignmentAttributeData object. seconds = hours * 3600 (RegularTime unit).
+assignments:
+  sales_activities:
+    assignment_attribute_uid: 4823453
+    task_uid: 435422
+    work_type_name: "Sales Activities"
+    project_name: "Exempt - Salary T00400"
+    client_name: "JDA Software"
+    attribute_data:
+      is_non_working: false
+      client_id: 12226
+      project_id: 26882
+      work_type_id: 10957
+      team_id: 3
+      charge_id: 0
+  administration:
+    assignment_attribute_uid: 4823451
+    task_uid: 435416
+    work_type_name: "Administration"
+    project_name: "Exempt - Salary T00400"
+    client_name: "JDA Software"
+    attribute_data:
+      is_non_working: false
+      client_id: 12226
+      project_id: 26882
+      work_type_id: 10934
+      team_id: 3
+      charge_id: 0
+  internal_project_support:
+    assignment_attribute_uid: 4823462
+    task_uid: 759321
+    work_type_name: "Internal Project Support"
+    project_name: "Exempt - Salary T00400"
+    client_name: "JDA Software"
+    attribute_data:
+      is_non_working: false
+      client_id: 12226
+      project_id: 26882
+      work_type_id: 11041
+      team_id: 3
+      charge_id: 0
+  learning_and_development:
+    assignment_attribute_uid: 4823452
+    task_uid: 435418
+    work_type_name: "Learning and Development"
+    project_name: "Exempt - Salary T00400"
+    client_name: "JDA Software"
+    attribute_data:
+      is_non_working: false
+      client_id: 12226
+      project_id: 26882
+      work_type_id: 10945
+      team_id: 3
+      charge_id: 0
+  travel_administration:
+    assignment_attribute_uid: 4823454
+    task_uid: 435425
+    work_type_name: "Travel Administration"
+    project_name: "Exempt - Salary T00400"
+    client_name: "JDA Software"
+    attribute_data:
+      is_non_working: false
+      client_id: 12226
+      project_id: 26882
+      work_type_id: 10967
+      team_id: 3
+      charge_id: 0
+  leave_time:                     # Non-Working Time section - loader SKIPS (out of scope)
+    assignment_attribute_uid: 4823450
+    task_uid: 414533
+    work_type_name: "Administration"
+    project_name: "Leave Time Project"
+    client_name: "JDA Internal"
+    section: non_working_time
+    attribute_data:
+      is_non_working: false
+      client_id: 1
+      project_id: 1
+      work_type_id: 10934
+      team_id: 3
+      charge_id: 0
+
+# SCA (pipeline/SharePoint) category -> assignment key + note rules.
+# note_category (the first field of the note per section 4.1) is the SCA
+# category string itself - e.g. "Discovery","OP-...","..." or "Conferences",
+# NOT the Upland work-type name. requires_opid follows section 4.2 (sales).
+# Multiple SCA categories can share one assignment; note_category keeps them
+# distinct for the Amendment-1 idempotency identity.
+category_map:
+  # --- Sales (OPID required in note) ---
+  "Discovery":                      {assignment: sales_activities, requires_opid: true}
+  "Prep - Demo/ Presentation":      {assignment: sales_activities, requires_opid: true}
+  "Customer - Demo/ Presentation":  {assignment: sales_activities, requires_opid: true}
+  "Customer - Relationship Mgmt":   {assignment: sales_activities, requires_opid: true}
+  "RFI/RFP/RFQ":                    {assignment: sales_activities, requires_opid: true}
+  "POC":                            {assignment: sales_activities, requires_opid: true}
+  # --- Overhead (no OPID) ---
+  "Admin":                          {assignment: administration, requires_opid: false}
+  "Internal Meeting":               {assignment: administration, requires_opid: false}
+  "Conferences":                    {assignment: administration, requires_opid: false}
+  "Training":                       {assignment: learning_and_development, requires_opid: false}
+  "Support":                        {assignment: internal_project_support, requires_opid: false}
+  "Template Build":                 {assignment: internal_project_support, requires_opid: false}
+  "Travel":                         {assignment: travel_administration, requires_opid: false}
+  # --- Non-working (loader skips; entered manually in the UI) ---
+  "Time Off":                       {assignment: leave_time, requires_opid: false, skip: true}

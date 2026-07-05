@@ -37,6 +37,16 @@ So that the source of truth for data shapes is unambiguous and unreachable code 
 
 ---
 
+## Tenrox migration follow-ups
+> As the timesheet owner, I want the Tenrox loader on a durable auth surface, so the ~1h cookie paste is not a permanent operating constraint.
+
+### Escalate for a non-federated API credential
+So that the loader can drop REST auth back in behind the same surface and stop depending on a per-run browser-cookie paste.
+- [#8] [P2][M] Escalate to Upland/IT (ServiceNow / Marcin Izydorczyk) for a non-federated Tenrox API credential (service account or app token) — **preferred long-term path**. Context: REST `/api/token` password grant returns `400 Invalid credentials` for the SSO-federated account, the UI cookie does not authorize `/api/*`, AND the ASPX `MyTimesheet.aspx` handler is not drivable from standalone Python (pageKey single-use; STOP-GATE 2 + EXP-1/2, 2026-07-05; see `docs/audits/2026-07-05-tenrox-aspx-pivot.md`). Interim write path is an in-page console snippet run in the operator's live tab · Done when: an API credential is provisioned and `src/tenrox.py` revives its REST client behind the payload-builder surface, or IT confirms none is available · refs ASPX-pivot audit
+- [#9] [P3][L] Full browser automation for Tenrox upload (Playwright with a persistent SSO/MFA profile) so the in-page-snippet manual paste step is eliminated. Depends on a decided SSO login strategy; only worthwhile if #8 does not land · Done when: an automated driver posts an approved week end-to-end without a manual console paste, or the slice is closed in favour of #8 · refs ASPX-pivot audit, console-uploader
+
+---
+
 **About this file** — ADR-66 story-map (Big Picture → Theme → User Story → Task), migrated
 2026-06-02 from the ADR-41/47 stream schema per ADR-38 A6 (canonical backlog form, all
 repos). Stories are human (goal + `So that`); tasks carry `[#id] [P][size] · Done when · refs`.

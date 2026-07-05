@@ -31,6 +31,9 @@ Thumbs.db
 # Project data
 data/input/*
 data/output/*
+data/discovery/
+data/outbox/*
+!data/**/.gitkeep
 !data/**/.gitkeep
 *.log
 token_cache.json

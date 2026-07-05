@@ -23,12 +23,18 @@ def aggregate_entries(df: pd.DataFrame) -> pd.DataFrame:
     if "is_autofilled" not in df.columns:
         df["is_autofilled"] = False
 
-    # Sort by week, category, client for organized output
-    df = df.sort_values(["week_beginning", "category", "client"])
+    # Sort by week, day, category, client for organized output
+    sort_cols = (
+        ["week_beginning"]
+        + (["date"] if "date" in df.columns else [])
+        + ["category", "client"]
+    )
+    df = df.sort_values(sort_cols)
 
     # Reorder columns
     column_order = [
         "week_beginning",
+        "date",
         "category",
         "client",
         "hours",
@@ -53,6 +59,8 @@ def add_week_summaries(df: pd.DataFrame) -> pd.DataFrame:
     """
     rows = []
 
+    has_date = "date" in df.columns
+
     # Sort weeks to ensure consistent ordering
     for week in sorted(df["week_beginning"].unique()):
         week_data = df[df["week_beginning"] == week]
@@ -75,6 +83,8 @@ def add_week_summaries(df: pd.DataFrame) -> pd.DataFrame:
             "is_autofilled": False,
             "status": "---",
         }
+        if has_date:
+            summary_row["date"] = ""
         rows.append(summary_row)
 
     result_df = pd.DataFrame(rows)
@@ -82,6 +92,7 @@ def add_week_summaries(df: pd.DataFrame) -> pd.DataFrame:
     # Reorder columns to match standard order
     column_order = [
         "week_beginning",
+        "date",
         "category",
         "client",
         "hours",

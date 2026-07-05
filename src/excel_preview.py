@@ -122,6 +122,7 @@ def generate_preview(
         rows.append(
             {
                 "week_beginning": week,
+                "date": event["start"][:10],
                 "category": sp_category,
                 "client": client or "",
                 "hours": hours,

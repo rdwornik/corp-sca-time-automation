@@ -321,6 +321,45 @@ def generate_autofill_entries(
     return new_entries
 
 
+def _distribute_entry_dates(
+    entries: list[dict], day_capacity: list[tuple[str, float]]
+) -> list[dict]:
+    """Assign real EntryDates to autofilled entries.
+
+    Pours each entry's hours into the week's empty-slot capacity greedily by
+    chronological day, splitting an entry across days when a single day cannot
+    hold it. Totals are preserved exactly; hours stay on the 0.5h grid (entry
+    hours are already 0.5-rounded and day capacities are whole hours).
+
+    day_capacity: list of (date_str, capacity_hours) in chronological order.
+    Returns a new list of per-day entry dicts, each carrying a "date".
+    """
+    remaining = [[d, cap] for d, cap in day_capacity]
+    dated: list[dict] = []
+    di = 0
+    for entry in entries:
+        hrs = entry["hours"]
+        while hrs > 0 and di < len(remaining):
+            if remaining[di][1] <= 0:
+                di += 1
+                continue
+            take = min(hrs, remaining[di][1])
+            new = dict(entry)
+            new["hours"] = take
+            new["date"] = remaining[di][0]
+            dated.append(new)
+            remaining[di][1] -= take
+            hrs -= take
+        if hrs > 0:
+            # Capacity exhausted (sum(entries) should be <= sum(capacity), so
+            # this is defensive) - attach the remainder to the last day.
+            new = dict(entry)
+            new["hours"] = hrs
+            new["date"] = remaining[-1][0] if remaining else entry["week_beginning"]
+            dated.append(new)
+    return dated
+
+
 def fill_gaps_with_new_entries(
     aggregated_df: pd.DataFrame, use_ai: bool = True, target_hours: float = 40.0
 ) -> pd.DataFrame:
@@ -366,13 +405,16 @@ def fill_gaps_with_new_entries(
         # Find ACTUAL empty slots in the calendar for this week
         week_date = datetime.strptime(week, "%Y-%m-%d")
         total_empty_hours = 0
+        day_capacity: list[tuple[str, float]] = []  # (date_str, hours), chronological
 
         for day_offset in range(7):
             day = week_date + timedelta(days=day_offset)
             if day.weekday() < 5:  # Weekdays only
                 empty_slots = find_empty_slots(events, day)
-                for start_h, end_h in empty_slots:
-                    total_empty_hours += end_h - start_h
+                day_hours = sum(end_h - start_h for start_h, end_h in empty_slots)
+                if day_hours > 0:
+                    day_capacity.append((day.strftime("%Y-%m-%d"), float(day_hours)))
+                total_empty_hours += day_hours
 
         # Only autofill if there are actual empty slots
         if total_empty_hours > 0:
@@ -383,6 +425,8 @@ def fill_gaps_with_new_entries(
                 new_entries = generate_autofill_entries(
                     events, df, week, empty_hours, use_ai
                 )
+                # Place each autofilled entry on real weekday dates.
+                new_entries = _distribute_entry_dates(new_entries, day_capacity)
                 all_new_entries.extend(new_entries)
 
     # Add new entries to dataframe
@@ -395,7 +439,12 @@ def fill_gaps_with_new_entries(
         )
 
         # Recalculate week totals
-        df = df.sort_values(["week_beginning", "category", "client"])
+        sort_cols = (
+            ["week_beginning"]
+            + (["date"] if "date" in df.columns else [])
+            + ["category", "client"]
+        )
+        df = df.sort_values(sort_cols)
         df = add_week_summaries(df)
 
     return df

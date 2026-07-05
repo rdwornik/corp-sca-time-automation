@@ -1,6 +1,6 @@
 """
 Test script to verify column order is correct.
-Expected order: week_beginning, category, client, hours, opportunity_id,
+Expected order: week_beginning, date, category, client, hours, opportunity_id,
                 comments, external_domains, needs_review, is_autofilled, status
 """
 
@@ -11,6 +11,7 @@ from src.aggregator import aggregate_entries, add_week_summaries
 test_data = [
     {
         "week_beginning": "2025-12-15",
+        "date": "2025-12-16",
         "category": "Internal Meeting",
         "hours": 1.0,
         "client": "",
@@ -25,6 +26,7 @@ test_data = [
 
 expected_order = [
     "week_beginning",
+    "date",
     "category",
     "client",
     "hours",

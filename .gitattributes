@@ -1,0 +1,5 @@
+# EOL normalization (#282) — LF in the repo for all text; checkout per-OS.
+* text=auto eol=lf
+
+# PowerShell scripts stay CRLF (Windows-first tooling; some hosts require it).
+*.ps1 text eol=crlf

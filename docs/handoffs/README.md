@@ -12,7 +12,7 @@
      <repo>` (#164 leg b — the hub-side seeder; the cross-repo consumer fan-out runs per-repo in
      the Wave-1/Wave-2 onboarding arcs, ADR-41, so the hub never writes a consumer's tree). -->
 
-# Handoffs — operator runbook (`seed-handoffs-runbook`)
+# Handoffs — operator runbook (`corp-sca-time-automation`)
 
 > **Read this top to bottom.** Together with a bundle's own `HANDOFF_BOOT.md` (which names *this*
 > session's slug, purpose, and mode), it is everything you need to boot a fresh browser (Claude.ai)
